@@ -5,7 +5,7 @@ mod writing;
 
 use pcm_setup::setup_pcm;
 use shared_buffer::SharedBuffer;
-use recording::record_audio;
+use recording::Recorder;
 use writing::write_audio;
 use alsa::pcm::{Format, Access};
 use std::sync::Arc;
@@ -20,7 +20,6 @@ const BUFFER_SIZE: usize = 1920; // Adjust as needed
 const FRAME_SIZE: usize = 1920; // Adjust as needed
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     fs::create_dir_all("recordings")?;
 
     let shared_buffer_a = Arc::new(SharedBuffer::new());
@@ -29,16 +28,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pcm_a = setup_pcm("hw:2,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
     let pcm_b = setup_pcm("hw:3,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
 
-    let buffer_a_clone = Arc::clone(&shared_buffer_a);
-    let buffer_b_clone = Arc::clone(&shared_buffer_b);
+    let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE)?;
+    let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE)?;
 
     // Spawn recording threads
     let recording_thread_a = thread::spawn(move || {
-        record_audio(pcm_a, buffer_a_clone, FRAME_SIZE, 10);
+        recorder_a.start(10*60).expect("Failed to start recording on channel A");
     });
 
     let recording_thread_b = thread::spawn(move || {
-        record_audio(pcm_b, buffer_b_clone, FRAME_SIZE, 10);
+        recorder_b.start(10*60).expect("Failed to start recording on channel B");
     });
 
     // Spawn writing threads
@@ -49,6 +48,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let writing_thread_b = thread::spawn(move || {
         write_audio('B', shared_buffer_b).expect("Failed to write audio to file");
     });
+    
+    // Sleep for 10 seconds
+    thread::sleep(std::time::Duration::from_secs(10));
 
     // Wait for threads to complete
     recording_thread_a.join().unwrap();
