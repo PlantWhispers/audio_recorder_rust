@@ -45,6 +45,7 @@ fn update_wav_header(file: &mut File) -> std::io::Result<()> {
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn write_audio(channel_label: char, shared_buffer: Arc<SharedBuffer>) -> Result<()> {
+    println!("Writing thread started");
     let start = SystemTime::now();
     let since_the_epoch = start.duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
@@ -60,6 +61,8 @@ pub fn write_audio(channel_label: char, shared_buffer: Arc<SharedBuffer>) -> Res
     }
 
     update_wav_header(&mut file)?;
+
+    println!("Wrote audio to {}", filename);
 
     Ok(())
 }

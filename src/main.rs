@@ -31,14 +31,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE)?;
     let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE)?;
 
-    // Spawn recording threads
-    let recording_thread_a = thread::spawn(move || {
-        recorder_a.start(10*60).expect("Failed to start recording on channel A");
-    });
-
-    let recording_thread_b = thread::spawn(move || {
-        recorder_b.start(10*60).expect("Failed to start recording on channel B");
-    });
+    recorder_a.start(10);
+    recorder_b.start(10);
 
     // Spawn writing threads
     let writing_thread_a = thread::spawn(move || {
@@ -48,15 +42,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let writing_thread_b = thread::spawn(move || {
         write_audio('B', shared_buffer_b).expect("Failed to write audio to file");
     });
-    
-    // Sleep for 10 seconds
-    thread::sleep(std::time::Duration::from_secs(10));
 
     // Wait for threads to complete
-    recording_thread_a.join().unwrap();
-    recording_thread_b.join().unwrap();
     writing_thread_a.join().unwrap();
     writing_thread_b.join().unwrap();
+
+    drop(recorder_a);
+    drop(recorder_b);
+
+    println!("Done");
 
     Ok(())
 }
