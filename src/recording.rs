@@ -24,45 +24,23 @@ impl Recorder {
         let shutdown_signal = Arc::new(Mutex::new(false));
         let condvar = Arc::new(Condvar::new());
 
-        let is_recording_clone = Arc::clone(&is_recording);
-        let duration_clone = Arc::clone(&duration);
-        let shutdown_signal_clone = Arc::clone(&shutdown_signal);
-        let condvar_clone = Arc::clone(&condvar);
-
-        let thread_handle = thread::spawn(move || {
-            let io = pcm_device.io_i16().expect("Failed to open PCM device");
-            let mut buffer = vec![0i16; frame_size];
-
-            loop {
-                {
-                    let mut is_rec = is_recording_clone.lock().unwrap();
-                    while !*is_rec && !*shutdown_signal_clone.lock().unwrap() {
-                        is_rec = condvar_clone.wait(is_rec).unwrap();
-                    }
-
-                    if *shutdown_signal_clone.lock().unwrap() {
-                        break;
-                    }
-                }
-
-                let start = Instant::now();
-                pcm_device.reset().expect("Failed to reset PCM device");
-                while *is_recording_clone.lock().unwrap() {
-                    match io.readi(&mut buffer) {
-                        Ok(_) => shared_buffer.push(Some(buffer.clone())),
-                        Err(err) => {
-                            eprintln!("Error while recording: {}", err);
-                            break;
-                        }
-                    }
-
-                    if Instant::now().duration_since(start) >= *duration_clone.lock().unwrap() {
-                        break;
-                    }
-                }
-                shared_buffer.push(None);
-            }
-        });
+        let thread_handle = {
+            let is_recording_clone = Arc::clone(&is_recording);
+            let duration_clone = Arc::clone(&duration);
+            let shutdown_signal_clone = Arc::clone(&shutdown_signal);
+            let condvar_clone = Arc::clone(&condvar);
+            thread::spawn(move || {
+                Self::record_thread_logic(
+                    pcm_device,
+                    shared_buffer,
+                    frame_size,
+                    is_recording_clone,
+                    duration_clone,
+                    shutdown_signal_clone,
+                    condvar_clone,
+                )
+            })
+        };
 
         Ok(Recorder {
             is_recording,
@@ -71,6 +49,49 @@ impl Recorder {
             condvar,
             thread_handle: Some(thread_handle),
         })
+    }
+
+    fn record_thread_logic(
+        pcm_device: PCM,
+        shared_buffer: Arc<SharedBuffer>,
+        frame_size: usize,
+        is_recording: Arc<Mutex<bool>>,
+        duration: Arc<Mutex<Duration>>,
+        shutdown_signal: Arc<Mutex<bool>>,
+        condvar: Arc<Condvar>,
+    ) {
+        let pcm_io = pcm_device.io_i16().unwrap(); 
+        let mut buffer = vec![0i16; frame_size];
+
+        loop {
+            {
+                let mut is_recording = is_recording.lock().unwrap();
+                while !*is_recording && !*shutdown_signal.lock().unwrap() {
+                    is_recording = condvar.wait(is_recording).unwrap();
+                }
+
+                if *shutdown_signal.lock().unwrap() {
+                    break;
+                }
+            }
+
+            let start = Instant::now();
+            pcm_device.reset().unwrap(); 
+            while *is_recording.lock().unwrap() {
+                match pcm_io.readi(&mut buffer) {
+                    Ok(_) => shared_buffer.push(Some(buffer.clone())),
+                    Err(err) => {
+                        eprintln!("Error while recording: {}", err);
+                        break;
+                    }
+                }
+
+                if Instant::now().duration_since(start) >= *duration.lock().unwrap() {
+                    break;
+                }
+            }
+            shared_buffer.push(None);
+        }
     }
 
     pub fn start(&self, duration_secs: u64) {
