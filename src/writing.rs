@@ -54,14 +54,11 @@ fn update_wav_header(file: &mut File) -> std::io::Result<()> {
 fn end_file(file: &mut Option<File>) -> std::io::Result<()> {
     if let Some(mut file) = file.take() {
         update_wav_header(&mut file)?;
-        println!("Closed file");
     }
     Ok(())
 }
 
 pub fn write_audio(shared_buffer: Arc<SharedBuffer>) -> Result<()> {
-    println!("Writing thread started");
-
     let mut file: Option<File> = None;
 
     loop {
@@ -69,7 +66,6 @@ pub fn write_audio(shared_buffer: Arc<SharedBuffer>) -> Result<()> {
             None => continue,
             Some(EndThread) => {
                 end_file(&mut file)?;
-                println!("Writing thread stopped");
                 break;
             }
             Some(NewFile(filename)) => {
