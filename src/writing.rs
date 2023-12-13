@@ -1,4 +1,4 @@
-use crate::shared_buffer::SharedBuffer;
+use crate::shared_buffer::{SharedBuffer, SharedBufferMessage::{NewFile, Data, EndOfFile, EndThread}};
 use std::sync::Arc;
 use std::fs::File;
 use std::io::{Write, Seek, SeekFrom, Result};
@@ -42,27 +42,41 @@ fn update_wav_header(file: &mut File) -> std::io::Result<()> {
 
     Ok(())
 }
-use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn write_audio(channel_label: char, shared_buffer: Arc<SharedBuffer>) -> Result<()> {
+fn end_file(file: &mut Option<File>) -> std::io::Result<()> {
+    if let Some(mut file) = file.take() {
+        update_wav_header(&mut file)?;
+        println!("Closed file");
+    }
+    Ok(())
+}
+
+pub fn write_audio(shared_buffer: Arc<SharedBuffer>) -> Result<()> {
     println!("Writing thread started");
-    let start = SystemTime::now();
-    let since_the_epoch = start.duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-    let filename = format!("recordings/{}{}.wav", since_the_epoch.as_secs(), channel_label);
 
-    let mut file = File::create(&filename)?;
-    write_wav_header(&mut file, CHANNELS, SAMPLE_RATE, 16)?; // 16 bits per sample
+    let mut file: Option<File> = None;
 
-    while let Some(data) = shared_buffer.pull() {
-        for sample in data {
-            file.write_all(&sample.to_le_bytes())?;
+    loop {
+        match shared_buffer.pull() {
+            None => continue,
+            Some(EndThread) => {
+                end_file(&mut file)?;
+                println!("Writing thread stopped");
+                break;
+            }
+            Some(NewFile(filename)) => {
+                end_file(&mut file)?; // Close the previous file (if any)
+                file = Some(File::create(filename)?);
+                write_wav_header(&mut file.as_mut().unwrap(), CHANNELS, SAMPLE_RATE, 16)?; //TODO: Bits per sample is hardcoded
+            }
+            Some(Data(data)) => {
+                for sample in data {
+                    file.as_mut().unwrap().write_all(&sample.to_le_bytes())?;
+                }
+            }
+            Some(EndOfFile) => end_file(&mut file)?,
         }
     }
-
-    update_wav_header(&mut file)?;
-
-    println!("Wrote audio to {}", filename);
 
     Ok(())
 }

@@ -27,28 +27,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (pcm_a, pcm_b) = setup_pcm("hw:0,0", "hw:1,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
 
-    let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE, 10)?;
-    let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE, 10)?;
+    let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE, 3, 'A')?;
+    let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE, 3, 'B')?;
 
     recorder_a.start();
     recorder_b.start();
 
     // Spawn writing threads
     let writing_thread_a = thread::spawn(move || {
-        write_audio('A', shared_buffer_a).expect("Failed to write audio to file");
+        write_audio(shared_buffer_a).expect("Failed to write audio to file");
     });
 
     let writing_thread_b = thread::spawn(move || {
-        write_audio('B', shared_buffer_b).expect("Failed to write audio to file");
+        write_audio( shared_buffer_b).expect("Failed to write audio to file");
     });
+
+    // sleep for 10 seconds
+    thread::sleep(std::time::Duration::from_secs(10));
 
     recorder_a.stop();
     recorder_b.stop();
 
-    // Wait for threads to complete
-    writing_thread_a.join().unwrap();
-    writing_thread_b.join().unwrap();
+    drop(recorder_a);
+    drop(recorder_b);
 
+    writing_thread_a.join().expect("Failed to join writing thread");
+    writing_thread_b.join().expect("Failed to join writing thread");
+    
     println!("Done");
 
     Ok(())

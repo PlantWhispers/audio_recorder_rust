@@ -1,8 +1,10 @@
 use crate::shared_buffer::SharedBuffer;
+use crate::shared_buffer::SharedBufferMessage::{NewFile, Data, EndOfFile, EndThread};
 use alsa::pcm::PCM;
 use std::error::Error;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::SystemTime;
 
 pub struct Recorder {
     is_recording: Arc<Mutex<bool>>,
@@ -17,6 +19,7 @@ impl Recorder {
         shared_buffer: Arc<SharedBuffer>,
         frame_size: usize,
         time_between_resets_in_s: u32,
+        channel_label: char,
     ) -> Result<Self, Box<dyn Error>> {
         let is_recording = Arc::new(Mutex::new(false));
         let shutdown_signal = Arc::new(Mutex::new(false));
@@ -37,6 +40,7 @@ impl Recorder {
                     samples_between_resets,
                     shutdown_signal_clone,
                     condvar_clone,
+                    channel_label,
                 )
             })
         };
@@ -57,6 +61,7 @@ impl Recorder {
         samples_between_resets: u32,
         shutdown_signal: Arc<Mutex<bool>>,
         condvar: Arc<Condvar>,
+        channel_label: char,
     ) {
         let pcm_io = pcm_device.io_i16().unwrap();
         let mut buffer = vec![0i16; frame_size];
@@ -74,20 +79,35 @@ impl Recorder {
             }
 
             while *is_recording.lock().unwrap() {
-                pcm_device.reset().unwrap();
+                shared_buffer.push(NewFile(format!(
+                    "recordings/{}{}.wav",
+                    SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                    channel_label
+                )));
+                
+                match pcm_device.reset() {
+                    Ok(_) => (),
+                    Err(err) => {
+                        eprintln!("Error while resetting PCM: {}", err);
+                        break;
+                    }
+                }
+
                 for _ in 0..(samples_between_resets / frame_size as u32) {
                     match pcm_io.readi(&mut buffer) {
-                        Ok(_) => shared_buffer.push(Some(buffer.clone())),
+                        Ok(_) => shared_buffer.push(Data(buffer.clone())),
                         Err(err) => {
                             eprintln!("Error while recording: {}", err);
                             break;
                         }
                     }
                 }
-                shared_buffer.push(None);
+                shared_buffer.push(EndOfFile);
                 println!("Resetting PCM")
             }
         }
+        shared_buffer.push(EndThread);
+        println!("EndThread sent");
     }
 
     pub fn start(&self) {
@@ -98,15 +118,19 @@ impl Recorder {
 
     pub fn stop(&self) {
         let mut is_recording = self.is_recording.lock().unwrap();
-        *is_recording = false;
-        self.condvar.notify_one();
+        if *is_recording {
+            *is_recording = false;
+            self.condvar.notify_one();
+            println!("Stop signal sent");
+        }
     }
 }
 
 impl Drop for Recorder {
     fn drop(&mut self) {
-        *self.shutdown_signal.lock().unwrap() = true;
         self.stop();
+        *self.shutdown_signal.lock().unwrap() = true;
+        self.condvar.notify_one();
 
         if let Some(thread_handle) = self.thread_handle.take() {
             thread_handle
