@@ -35,4 +35,3 @@ impl SharedBuffer {
         queue.pop_front()
     }
 }
-

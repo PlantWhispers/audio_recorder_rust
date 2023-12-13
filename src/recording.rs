@@ -1,5 +1,8 @@
-use crate::shared_buffer::SharedBuffer;
-use crate::shared_buffer::SharedBufferMessage::{NewFile, Data, EndOfFile, EndThread};
+use crate::shared_buffer::{
+    SharedBuffer,
+    SharedBufferMessage::{Data, EndOfFile, EndThread, NewFile},
+};
+use crate::writing::write_audio;
 use alsa::pcm::PCM;
 use std::error::Error;
 use std::sync::{Arc, Condvar, Mutex};
@@ -11,6 +14,7 @@ pub struct Recorder {
     shutdown_signal: Arc<Mutex<bool>>,
     condvar: Arc<Condvar>,
     record_thread: Option<JoinHandle<()>>,
+    write_thread: Option<JoinHandle<()>>,
 }
 
 impl Recorder {
@@ -26,6 +30,7 @@ impl Recorder {
         let condvar = Arc::new(Condvar::new());
 
         let record_thread = {
+            let shared_buffer_clone = Arc::clone(&shared_buffer);
             let is_recording_clone = Arc::clone(&is_recording);
             let shutdown_signal_clone = Arc::clone(&shutdown_signal);
             let condvar_clone = Arc::clone(&condvar);
@@ -34,7 +39,7 @@ impl Recorder {
             thread::spawn(move || {
                 Self::record_thread_logic(
                     pcm_device,
-                    shared_buffer,
+                    shared_buffer_clone,
                     frame_size,
                     is_recording_clone,
                     samples_between_resets,
@@ -45,11 +50,19 @@ impl Recorder {
             })
         };
 
+        let write_thread = {
+            let shared_buffer_clone = Arc::clone(&shared_buffer);
+            thread::spawn(move || {
+                write_audio(shared_buffer_clone).expect("Failed to write audio to file");
+            })
+        };
+
         Ok(Recorder {
             is_recording,
             shutdown_signal,
             condvar,
             record_thread: Some(record_thread),
+            write_thread: Some(write_thread),
         })
     }
 
@@ -81,24 +94,34 @@ impl Recorder {
             while *is_recording.lock().unwrap() {
                 shared_buffer.push(NewFile(format!(
                     "recordings/{}{}.wav",
-                    SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                    SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     channel_label
                 )));
-                
+
                 match pcm_device.reset() {
                     Ok(_) => (),
                     Err(err) => {
                         eprintln!("Error while resetting PCM: {}", err);
-                        break;
+
+                        shared_buffer.push(EndOfFile);
+                        pcm_device.try_recover(err, false).unwrap();
                     }
                 }
 
                 for _ in 0..(samples_between_resets / frame_size as u32) {
                     match pcm_io.readi(&mut buffer) {
-                        Ok(_) => shared_buffer.push(Data(buffer.clone())),
+                        Ok(_) => {
+                            shared_buffer.push(Data(buffer.clone()));
+                            // println!("Avail: {}", pcm_device.avail_update().unwrap());
+                        }
                         Err(err) => {
                             eprintln!("Error while recording: {}", err);
-                            break;
+
+                            shared_buffer.push(EndOfFile);
+                            pcm_device.try_recover(err, false).unwrap();
                         }
                     }
                 }
@@ -136,6 +159,9 @@ impl Drop for Recorder {
             thread_handle
                 .join()
                 .expect("Failed to join recording thread");
+        }
+        if let Some(thread_handle) = self.write_thread.take() {
+            thread_handle.join().expect("Failed to join writing thread");
         }
     }
 }

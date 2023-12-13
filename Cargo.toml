@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 alsa = "0.8.1"
+cargo-watch = "8.4.1"
 chrono = "0.4.30"
