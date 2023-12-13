@@ -1,6 +1,6 @@
 use crate::shared_buffer::{
     SharedBuffer,
-    SharedBufferMessage::{Data, EndOfFile, EndThread, NewFile},
+    SharedBufferMessage::{Data, EndThread, NewFile},
 };
 use std::fs::File;
 use std::io::{Result, Seek, SeekFrom, Write};
@@ -79,7 +79,6 @@ pub fn write_audio(shared_buffer: Arc<SharedBuffer>) -> Result<()> {
                     file.as_mut().unwrap().write_all(&sample.to_le_bytes())?;
                 }
             }
-            Some(EndOfFile) => continue,
         }
     }
 

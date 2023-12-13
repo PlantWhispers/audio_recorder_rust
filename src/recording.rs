@@ -1,6 +1,6 @@
 use crate::shared_buffer::{
     SharedBuffer,
-    SharedBufferMessage::{Data, EndOfFile, EndThread, NewFile},
+    SharedBufferMessage::{Data, EndThread, NewFile},
 };
 use crate::writing::write_audio;
 use alsa::pcm::PCM;
@@ -96,7 +96,6 @@ impl Recorder {
                     }
                 }
             }
-            shared_buffer.push(EndOfFile);
         }
         shared_buffer.push(EndThread);
     }

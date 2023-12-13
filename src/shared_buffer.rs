@@ -4,7 +4,6 @@ use std::sync::{Condvar, Mutex};
 pub enum SharedBufferMessage {
     NewFile(String),
     Data(Vec<i16>),
-    EndOfFile,
     EndThread,
 }
 
