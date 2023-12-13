@@ -25,14 +25,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_buffer_a = Arc::new(SharedBuffer::new());
     let shared_buffer_b = Arc::new(SharedBuffer::new());
 
-    let pcm_a = setup_pcm("hw:2,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
-    let pcm_b = setup_pcm("hw:3,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
+    let pcm_a = setup_pcm("hw:0,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
+    let pcm_b = setup_pcm("hw:1,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
 
-    let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE)?;
-    let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE)?;
+    let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE, 10)?;
+    let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE, 10)?;
 
-    recorder_a.start(10);
-    recorder_b.start(10);
+    recorder_a.start();
+    recorder_b.start();
 
     // Spawn writing threads
     let writing_thread_a = thread::spawn(move || {
@@ -43,12 +43,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         write_audio('B', shared_buffer_b).expect("Failed to write audio to file");
     });
 
+    recorder_a.stop();
+    recorder_b.stop();
+
     // Wait for threads to complete
     writing_thread_a.join().unwrap();
     writing_thread_b.join().unwrap();
-
-    drop(recorder_a);
-    drop(recorder_b);
 
     println!("Done");
 
