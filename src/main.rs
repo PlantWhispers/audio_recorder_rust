@@ -25,8 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_buffer_a = Arc::new(SharedBuffer::new());
     let shared_buffer_b = Arc::new(SharedBuffer::new());
 
-    let pcm_a = setup_pcm("hw:0,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
-    let pcm_b = setup_pcm("hw:1,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
+    let (pcm_a, pcm_b) = setup_pcm("hw:0,0", "hw:1,0", SAMPLE_RATE, CHANNELS, FORMAT, ACCESS, BUFFER_SIZE as i64)?;
 
     let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE, 10)?;
     let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE, 10)?;
