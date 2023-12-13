@@ -10,7 +10,7 @@ pub struct Recorder {
     is_recording: Arc<Mutex<bool>>,
     shutdown_signal: Arc<Mutex<bool>>,
     condvar: Arc<Condvar>,
-    thread_handle: Option<JoinHandle<()>>,
+    record_thread: Option<JoinHandle<()>>,
 }
 
 impl Recorder {
@@ -25,12 +25,12 @@ impl Recorder {
         let shutdown_signal = Arc::new(Mutex::new(false));
         let condvar = Arc::new(Condvar::new());
 
-        let thread_handle = {
+        let record_thread = {
             let is_recording_clone = Arc::clone(&is_recording);
-            let samples_between_resets =
-                time_between_resets_in_s * pcm_device.hw_params_current().unwrap().get_rate()?;
             let shutdown_signal_clone = Arc::clone(&shutdown_signal);
             let condvar_clone = Arc::clone(&condvar);
+            let samples_between_resets =
+                time_between_resets_in_s * pcm_device.hw_params_current().unwrap().get_rate()?;
             thread::spawn(move || {
                 Self::record_thread_logic(
                     pcm_device,
@@ -49,7 +49,7 @@ impl Recorder {
             is_recording,
             shutdown_signal,
             condvar,
-            thread_handle: Some(thread_handle),
+            record_thread: Some(record_thread),
         })
     }
 
@@ -132,7 +132,7 @@ impl Drop for Recorder {
         *self.shutdown_signal.lock().unwrap() = true;
         self.condvar.notify_one();
 
-        if let Some(thread_handle) = self.thread_handle.take() {
+        if let Some(thread_handle) = self.record_thread.take() {
             thread_handle
                 .join()
                 .expect("Failed to join recording thread");
