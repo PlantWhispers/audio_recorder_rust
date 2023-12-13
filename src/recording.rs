@@ -68,14 +68,7 @@ impl Recorder {
         let mut buffer = vec![0i16; frame_size];
 
         'outer: while !*shutdown_signal.lock().unwrap() {
-            shared_buffer.push(NewFile(format!(
-                "recordings/{}{}.wav",
-                SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
-                channel_label
-            )));
+            shared_buffer.push(NewFile(new_file_name(channel_label)));
 
             match pcm_device.reset() {
                 Ok(_) => (),
@@ -99,6 +92,17 @@ impl Recorder {
         }
         shared_buffer.push(EndThread);
     }
+}
+
+fn new_file_name(channel_label: char) -> String {
+    format!(
+        "recordings/{}{}.wav",
+        SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+        channel_label
+    )
 }
 
 impl Drop for Recorder {
