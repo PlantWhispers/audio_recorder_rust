@@ -1,9 +1,7 @@
-use crate::shared_buffer::{
-    SharedBuffer,
-    SharedBufferMessage::{Data, EndThread, NewFile},
-};
+use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use crate::writing::write_audio;
 use alsa::pcm::PCM;
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
@@ -19,22 +17,23 @@ impl Recorder {
     pub fn new(
         // array of 2 PCM devices
         pcm_devices: [PCM; 2],
-        shared_buffer: Arc<SharedBuffer>,
         frame_size: usize,
         time_between_resets_in_s: u32,
         channel_label: char,
     ) -> Result<Self, Box<dyn Error>> {
+        let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
+            unbounded();
+
         let shutdown_signal = Arc::new(Mutex::new(false));
 
         let record_thread = {
-            let shared_buffer_clone = Arc::clone(&shared_buffer);
             let shutdown_signal_clone = Arc::clone(&shutdown_signal);
             let samples_between_resets = time_between_resets_in_s
                 * pcm_devices[0].hw_params_current().unwrap().get_rate()?;
             thread::spawn(move || {
                 Self::record_thread_logic(
                     pcm_devices,
-                    shared_buffer_clone,
+                    sender,
                     frame_size,
                     samples_between_resets,
                     shutdown_signal_clone,
@@ -44,9 +43,8 @@ impl Recorder {
         };
 
         let write_thread = {
-            let shared_buffer_clone = Arc::clone(&shared_buffer);
             thread::spawn(move || {
-                write_audio(shared_buffer_clone).expect("Failed to write audio to file");
+                write_audio(receiver).expect("Failed to write audio to file");
             })
         };
 
@@ -59,7 +57,7 @@ impl Recorder {
 
     fn record_thread_logic(
         pcm_devices: [PCM; 2],
-        shared_buffer: Arc<SharedBuffer>,
+        sender: Sender<SharedBufferMessage>,
         frame_size: usize,
         samples_between_resets: u32,
         shutdown_signal: Arc<Mutex<bool>>,
@@ -78,7 +76,7 @@ impl Recorder {
             .collect::<Vec<_>>();
 
         'outer: while !*shutdown_signal.lock().unwrap() {
-            shared_buffer.push(NewFile(new_file_name(channel_label)));
+            sender.send(NewFile(new_file_name(channel_label))).unwrap();
 
             for pcm_device in pcm_devices.iter() {
                 match pcm_device.reset() {
@@ -100,10 +98,12 @@ impl Recorder {
                         }
                     }
                 }
-                shared_buffer.push(Data([mics[0].buffer.clone(), mics[1].buffer.clone()]));
+                sender
+                    .send(Data([mics[0].buffer.clone(), mics[1].buffer.clone()]))
+                    .unwrap();
             }
         }
-        shared_buffer.push(EndThread);
+        sender.send(EndThread).unwrap();
     }
 }
 struct Microphone<'a> {

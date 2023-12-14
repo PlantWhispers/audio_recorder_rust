@@ -1,10 +1,8 @@
-use crate::shared_buffer::{
-    SharedBuffer,
-    SharedBufferMessage::{Data, EndThread, NewFile},
-};
+use crossbeam::channel::Receiver;
+
+use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use std::fs::File;
 use std::io::{Result, Seek, SeekFrom, Write};
-use std::sync::Arc;
 
 // Import the constants
 // use crate::CHANNELS;
@@ -58,23 +56,22 @@ fn end_file(file: &mut Option<File>) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn write_audio(shared_buffer: Arc<SharedBuffer>) -> Result<()> {
+pub fn write_audio(receiver: Receiver<SharedBufferMessage>) -> Result<()> {
     let mut file: Option<File> = None;
 
-    loop {
-        match shared_buffer.pull() {
-            None => continue,
-            Some(EndThread) => {
+    for message in receiver {
+        match message {
+            EndThread => {
                 end_file(&mut file)?;
                 break;
             }
-            Some(NewFile(filename)) => {
+            NewFile(filename) => {
                 end_file(&mut file)?; // Close the previous file (if any)
                 file = Some(File::create(filename)?);
                 write_wav_header(file.as_mut().unwrap(), 2, SAMPLE_RATE, 16)?;
                 //TODO: Bits per sample is hardcoded
             }
-            Some(Data(data)) => {
+            Data(data) => {
                 // Write the data interleaved to the file
                 for (a, b) in data[0].iter().zip(data[1].iter()) {
                     file.as_mut().unwrap().write_all(&a.to_le_bytes())?;
