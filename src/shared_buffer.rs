@@ -1,5 +1,5 @@
 pub enum SharedBufferMessage {
     NewFile(String),
-    Data([Vec<i16>; 2]),
+    Data([[i16; 1920]; 2]),
     EndThread,
 }
