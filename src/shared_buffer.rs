@@ -3,7 +3,7 @@ use std::sync::{Condvar, Mutex};
 
 pub enum SharedBufferMessage {
     NewFile(String),
-    Data(Vec<i16>),
+    Data([Vec<i16>; 2]),
     EndThread,
 }
 

@@ -7,7 +7,7 @@ use std::io::{Result, Seek, SeekFrom, Write};
 use std::sync::Arc;
 
 // Import the constants
-use crate::CHANNELS;
+// use crate::CHANNELS;
 use crate::SAMPLE_RATE;
 
 fn write_wav_header(
@@ -71,12 +71,14 @@ pub fn write_audio(shared_buffer: Arc<SharedBuffer>) -> Result<()> {
             Some(NewFile(filename)) => {
                 end_file(&mut file)?; // Close the previous file (if any)
                 file = Some(File::create(filename)?);
-                write_wav_header(file.as_mut().unwrap(), CHANNELS, SAMPLE_RATE, 16)?;
+                write_wav_header(file.as_mut().unwrap(), 2, SAMPLE_RATE, 16)?;
                 //TODO: Bits per sample is hardcoded
             }
             Some(Data(data)) => {
-                for sample in data {
-                    file.as_mut().unwrap().write_all(&sample.to_le_bytes())?;
+                // Write the data interleaved to the file
+                for (a, b) in data[0].iter().zip(data[1].iter()) {
+                    file.as_mut().unwrap().write_all(&a.to_le_bytes())?;
+                    file.as_mut().unwrap().write_all(&b.to_le_bytes())?;
                 }
             }
         }

@@ -21,8 +21,7 @@ const FRAME_SIZE: usize = 1920; // Adjust as needed
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("recordings")?;
 
-    let shared_buffer_a = Arc::new(SharedBuffer::new());
-    let shared_buffer_b = Arc::new(SharedBuffer::new());
+    let shared_buffer = Arc::new(SharedBuffer::new());
 
     let (pcm_a, pcm_b) = setup_pcm(
         "hw:0,0",
@@ -34,16 +33,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         BUFFER_SIZE as i64,
     )?;
 
-    let recorder_a = Recorder::new(pcm_a, Arc::clone(&shared_buffer_a), FRAME_SIZE, 3, 'A')?;
-    let recorder_b = Recorder::new(pcm_b, Arc::clone(&shared_buffer_b), FRAME_SIZE, 3, 'B')?;
+    let recorder = Recorder::new(
+        [pcm_a, pcm_b],
+        Arc::clone(&shared_buffer),
+        FRAME_SIZE,
+        3,
+        'A',
+    )?;
 
     // sleep for 10 seconds
     thread::sleep(std::time::Duration::from_secs(10));
 
     println!("Done");
 
-    drop(recorder_a);
-    drop(recorder_b);
+    drop(recorder);
 
     Ok(())
 }
