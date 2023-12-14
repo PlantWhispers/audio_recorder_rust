@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         BUFFER_SIZE as i64,
     )?;
 
-    let recorder = Recorder::new([pcm_a, pcm_b], FRAME_SIZE, 3, 'A')?;
+    let recorder = Recorder::new([pcm_a, pcm_b], FRAME_SIZE, 3)?;
 
     // sleep for 10 seconds
     thread::sleep(std::time::Duration::from_secs(10));

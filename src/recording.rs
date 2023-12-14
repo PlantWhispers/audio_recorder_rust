@@ -19,7 +19,6 @@ impl Recorder {
         pcm_devices: [PCM; 2],
         frame_size: usize,
         time_between_resets_in_s: u32,
-        channel_label: char,
     ) -> Result<Self, Box<dyn Error>> {
         let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
             unbounded();
@@ -37,7 +36,6 @@ impl Recorder {
                     frame_size,
                     samples_between_resets,
                     shutdown_signal_clone,
-                    channel_label,
                 )
             })
         };
@@ -61,7 +59,6 @@ impl Recorder {
         frame_size: usize,
         samples_between_resets: u32,
         shutdown_signal: Arc<Mutex<bool>>,
-        channel_label: char,
     ) {
         let mut mics = pcm_devices
             .iter()
@@ -76,7 +73,7 @@ impl Recorder {
             .collect::<Vec<_>>();
 
         'outer: while !*shutdown_signal.lock().unwrap() {
-            sender.send(NewFile(new_file_name(channel_label))).unwrap();
+            sender.send(NewFile(new_file_name())).unwrap();
 
             for pcm_device in pcm_devices.iter() {
                 match pcm_device.reset() {
@@ -112,14 +109,13 @@ struct Microphone<'a> {
     buffer: Vec<i16>,
 }
 
-fn new_file_name(channel_label: char) -> String {
+fn new_file_name() -> String {
     format!(
-        "recordings/{}{}.wav",
+        "recordings/{}.wav",
         SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs(),
-        channel_label
     )
 }
 
