@@ -7,7 +7,6 @@ use alsa::pcm::{Access, Format};
 use pcm_setup::setup_pcm;
 use recording::Recorder;
 use std::fs;
-use std::thread;
 
 const SAMPLE_RATE: u32 = 384_000;
 const CHANNELS: u16 = 1;
@@ -15,7 +14,7 @@ const FORMAT: Format = Format::S16LE;
 const ACCESS: Access = Access::RWInterleaved;
 const ALSA_BUFFER_SIZE: usize = 19200; // Adjust as needed
 const BUFFER_SIZE: usize = 1920; // Adjust as needed
-const TIME_BETWEEN_RESETS_IN_S: u32 = 3;
+const TIME_BETWEEN_RESETS_IN_S: u32 = 30;
 const N_OF_BUFFERS_PER_FILE: u32 = TIME_BETWEEN_RESETS_IN_S * SAMPLE_RATE / BUFFER_SIZE as u32;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,8 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let recorder = Recorder::new([pcm_a, pcm_b])?;
 
-    // sleep for 10 seconds
-    thread::sleep(std::time::Duration::from_secs(10));
+    // wait for keybord input
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
 
     println!("Done");
 
