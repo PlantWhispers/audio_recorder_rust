@@ -2,7 +2,7 @@ use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use crate::SAMPLE_RATE;
 use crossbeam::channel::Receiver;
 use std::fs::File;
-use std::io::{Result, Seek, SeekFrom, Write};
+use std::io::{BufWriter, Result, Seek, SeekFrom, Write};
 
 const BITS_PER_SAMPLE: u16 = 16;
 const NUM_CHANNELS_IN_FILE: u16 = 2;
@@ -48,15 +48,17 @@ fn update_wav_header(file: &mut File) -> std::io::Result<()> {
     Ok(())
 }
 
-fn end_file(file: &mut Option<File>) -> std::io::Result<()> {
-    if let Some(mut file) = file.take() {
-        update_wav_header(&mut file)?;
+fn end_file(file: &mut Option<BufWriter<File>>) -> std::io::Result<()> {
+    if let Some(mut buf_file) = file.take() {
+        buf_file.flush()?; // Ensure all data is written to disk
+        let mut inner_file = buf_file.into_inner()?; // Get the underlying File
+        update_wav_header(&mut inner_file)?; // Update the header with the correct file size
     }
     Ok(())
 }
 
 pub fn writing_thread_logic(receiver: Receiver<SharedBufferMessage>) -> Result<()> {
-    let mut file: Option<File> = None;
+    let mut file: Option<BufWriter<File>> = None;
 
     for message in receiver {
         match message {
@@ -67,19 +69,23 @@ pub fn writing_thread_logic(receiver: Receiver<SharedBufferMessage>) -> Result<(
             NewFile(filename) => {
                 end_file(&mut file)?; // Close the previous file (if any)
                 println!("Creating new file: {}", &filename);
-                file = Some(File::create(filename)?);
+                let mut new_file = File::create(filename)?;
                 write_wav_header(
-                    file.as_mut().unwrap(),
+                    &mut new_file,
                     NUM_CHANNELS_IN_FILE,
                     SAMPLE_RATE,
                     BITS_PER_SAMPLE,
                 )?;
+                file = Some(BufWriter::new(new_file));
             }
             Data(data) => {
-                // Write the data interleaved to the file
-                for (a, b) in data[0].iter().zip(data[1].iter()) {
-                    file.as_mut().unwrap().write_all(&a.to_le_bytes())?;
-                    file.as_mut().unwrap().write_all(&b.to_le_bytes())?;
+                if let Some(ref mut writer) = file {
+                    let mut buffer = Vec::new();
+                    for (a, b) in data[0].iter().zip(data[1].iter()) {
+                        buffer.extend_from_slice(&a.to_le_bytes());
+                        buffer.extend_from_slice(&b.to_le_bytes());
+                    }
+                    writer.write_all(&buffer)?;
                 }
             }
         }
