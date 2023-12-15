@@ -1,6 +1,6 @@
 use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use crate::writing::write_audio;
-use crate::BUFFER_SIZE;
+use crate::{BUFFER_SIZE, SAMPLE_RATE};
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::error::Error;
@@ -27,8 +27,7 @@ impl Recorder {
 
         let record_thread = {
             let shutdown_signal_clone = Arc::clone(&shutdown_signal);
-            let samples_between_resets = time_between_resets_in_s
-                * pcm_devices[0].hw_params_current().unwrap().get_rate()?;
+            let samples_between_resets = time_between_resets_in_s * SAMPLE_RATE;
             thread::spawn(move || {
                 Self::record_thread_logic(
                     pcm_devices,
