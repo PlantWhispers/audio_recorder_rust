@@ -1,5 +1,6 @@
 use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use crate::writing::write_audio;
+use crate::FRAME_SIZE;
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::error::Error;
@@ -17,7 +18,6 @@ impl Recorder {
     pub fn new(
         // array of 2 PCM devices
         pcm_devices: [PCM; 2],
-        frame_size: usize,
         time_between_resets_in_s: u32,
     ) -> Result<Self, Box<dyn Error>> {
         let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
@@ -33,7 +33,6 @@ impl Recorder {
                 Self::record_thread_logic(
                     pcm_devices,
                     sender,
-                    frame_size,
                     samples_between_resets,
                     shutdown_signal_clone,
                 )
@@ -56,7 +55,6 @@ impl Recorder {
     fn record_thread_logic(
         pcm_devices: [PCM; 2],
         sender: Sender<SharedBufferMessage>,
-        frame_size: usize,
         samples_between_resets: u32,
         shutdown_signal: Arc<Mutex<bool>>,
     ) {
@@ -78,7 +76,7 @@ impl Recorder {
                 }
             }
 
-            for _ in 0..(samples_between_resets / frame_size as u32) {
+            for _ in 0..(samples_between_resets / crate::FRAME_SIZE as u32) {
                 let data = {
                     (
                         get_mic_data(&pcm_devices[0], &pcm_ios[1]),
@@ -89,10 +87,7 @@ impl Recorder {
                     (Ok(a), Ok(b)) => {
                         sender.send(Data([a, b])).unwrap();
                     }
-
-                    _ => {
-                        continue 'outer;
-                    }
+                    _ => continue 'outer,
                 }
             }
         }
@@ -101,7 +96,7 @@ impl Recorder {
 }
 
 fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
-    let mut buffer = vec![0i16; 1920];
+    let mut buffer = vec![0i16; FRAME_SIZE];
     match pcm_io.readi(&mut buffer) {
         Ok(_) => Ok(buffer),
         Err(err) => {
