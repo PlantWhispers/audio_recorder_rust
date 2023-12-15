@@ -1,11 +1,12 @@
 mod pcm_setup;
-mod recording;
+mod recorder;
+mod recording_thread;
 mod shared_buffer;
-mod writing;
+mod writing_thread;
 
 use alsa::pcm::{Access, Format};
 use pcm_setup::setup_pcm;
-use recording::Recorder;
+use recorder::Recorder;
 use std::fs;
 
 const SAMPLE_RATE: u32 = 384_000;

@@ -55,7 +55,7 @@ fn end_file(file: &mut Option<File>) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn write_audio(receiver: Receiver<SharedBufferMessage>) -> Result<()> {
+pub fn writing_thread_logic(receiver: Receiver<SharedBufferMessage>) -> Result<()> {
     let mut file: Option<File> = None;
 
     for message in receiver {
