@@ -4,12 +4,13 @@ use crate::{BUFFER_SIZE, SAMPLE_RATE};
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
 
 pub struct Recorder {
-    shutdown_signal: Arc<Mutex<bool>>,
+    shutdown_signal: Arc<AtomicBool>,
     record_thread: Option<JoinHandle<()>>,
     write_thread: Option<JoinHandle<()>>,
 }
@@ -23,7 +24,7 @@ impl Recorder {
         let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
             unbounded();
 
-        let shutdown_signal = Arc::new(Mutex::new(false));
+        let shutdown_signal = Arc::new(AtomicBool::new(false));
 
         let record_thread = {
             let shutdown_signal_clone = Arc::clone(&shutdown_signal);
@@ -55,14 +56,14 @@ impl Recorder {
         pcm_devices: [PCM; 2],
         sender: Sender<SharedBufferMessage>,
         samples_between_resets: u32,
-        shutdown_signal: Arc<Mutex<bool>>,
+        shutdown_signal: Arc<AtomicBool>,
     ) {
         let pcm_ios = pcm_devices
             .iter()
             .map(|device| device.io_i16().unwrap())
             .collect::<Vec<_>>();
 
-        'outer: while !*shutdown_signal.lock().unwrap() {
+        'outer: while !shutdown_signal.load(Ordering::SeqCst) {
             sender.send(NewFile(new_file_name())).unwrap();
 
             for pcm_device in pcm_devices.iter() {
@@ -117,7 +118,7 @@ fn new_file_name() -> String {
 
 impl Drop for Recorder {
     fn drop(&mut self) {
-        *self.shutdown_signal.lock().unwrap() = true;
+        self.shutdown_signal.store(true, Ordering::SeqCst);
 
         if let Some(thread_handle) = self.record_thread.take() {
             thread_handle
