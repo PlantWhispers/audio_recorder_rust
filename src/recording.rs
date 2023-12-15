@@ -78,7 +78,7 @@ impl Recorder {
             for _ in 0..samples_between_resets / BUFFER_SIZE as u32 {
                 let data = {
                     (
-                        get_mic_data(&pcm_devices[0], &pcm_ios[1]),
+                        get_mic_data(&pcm_devices[0], &pcm_ios[0]),
                         get_mic_data(&pcm_devices[1], &pcm_ios[1]),
                     )
                 };
