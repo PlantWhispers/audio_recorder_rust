@@ -1,6 +1,6 @@
 use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use crate::writing::write_audio;
-use crate::FRAME_SIZE;
+use crate::BUFFER_SIZE;
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::error::Error;
@@ -76,7 +76,7 @@ impl Recorder {
                 }
             }
 
-            for _ in 0..(samples_between_resets / crate::FRAME_SIZE as u32) {
+            for _ in 0..samples_between_resets / BUFFER_SIZE as u32 {
                 let data = {
                     (
                         get_mic_data(&pcm_devices[0], &pcm_ios[1]),
@@ -96,7 +96,7 @@ impl Recorder {
 }
 
 fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
-    let mut buffer = vec![0i16; FRAME_SIZE];
+    let mut buffer = vec![0i16; BUFFER_SIZE];
     match pcm_io.readi(&mut buffer) {
         Ok(_) => Ok(buffer),
         Err(err) => {

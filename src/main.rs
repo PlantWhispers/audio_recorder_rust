@@ -14,7 +14,6 @@ const CHANNELS: u16 = 1;
 const FORMAT: Format = Format::S16LE;
 const ACCESS: Access = Access::RWInterleaved;
 const BUFFER_SIZE: usize = 1920; // Adjust as needed
-const FRAME_SIZE: usize = 1920; // Adjust as needed
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("recordings")?;
