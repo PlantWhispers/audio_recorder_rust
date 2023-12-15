@@ -100,8 +100,8 @@ impl Recorder {
     }
 }
 
-fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<[i16; 1920], Box<dyn Error>> {
-    let mut buffer = [0i16; 1920];
+fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
+    let mut buffer = vec![0i16; 1920];
     match pcm_io.readi(&mut buffer) {
         Ok(_) => Ok(buffer),
         Err(err) => {

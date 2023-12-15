@@ -67,6 +67,7 @@ pub fn write_audio(receiver: Receiver<SharedBufferMessage>) -> Result<()> {
             }
             NewFile(filename) => {
                 end_file(&mut file)?; // Close the previous file (if any)
+                println!("Creating new file: {}", &filename);
                 file = Some(File::create(filename)?);
                 write_wav_header(file.as_mut().unwrap(), 2, SAMPLE_RATE, 16)?;
                 //TODO: Bits per sample is hardcoded
