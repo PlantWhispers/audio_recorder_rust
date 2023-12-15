@@ -1,6 +1,6 @@
 use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
 use crate::writing::write_audio;
-use crate::{BUFFER_SIZE, SAMPLE_RATE};
+use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE};
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::error::Error;
@@ -19,7 +19,6 @@ impl Recorder {
     pub fn new(
         // array of 2 PCM devices
         pcm_devices: [PCM; 2],
-        time_between_resets_in_s: u32,
     ) -> Result<Self, Box<dyn Error>> {
         let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
             unbounded();
@@ -28,14 +27,8 @@ impl Recorder {
 
         let record_thread = {
             let shutdown_signal_clone = Arc::clone(&shutdown_signal);
-            let samples_between_resets = time_between_resets_in_s * SAMPLE_RATE;
             thread::spawn(move || {
-                Self::record_thread_logic(
-                    pcm_devices,
-                    sender,
-                    samples_between_resets,
-                    shutdown_signal_clone,
-                )
+                Self::record_thread_logic(pcm_devices, sender, shutdown_signal_clone)
             })
         };
 
@@ -55,7 +48,6 @@ impl Recorder {
     fn record_thread_logic(
         pcm_devices: [PCM; 2],
         sender: Sender<SharedBufferMessage>,
-        samples_between_resets: u32,
         shutdown_signal: Arc<AtomicBool>,
     ) {
         let pcm_ios = pcm_devices
@@ -76,7 +68,7 @@ impl Recorder {
                 }
             }
 
-            for _ in 0..samples_between_resets / BUFFER_SIZE as u32 {
+            for _ in 0..N_OF_BUFFERS_PER_FILE {
                 let data = {
                     (
                         get_mic_data(&pcm_devices[0], &pcm_ios[0]),
