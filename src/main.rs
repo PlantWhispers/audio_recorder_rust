@@ -19,15 +19,7 @@ const BUFFER_SIZE: usize = 1920; // Adjust as needed
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("recordings")?;
 
-    let (pcm_a, pcm_b) = setup_pcm(
-        "hw:0,0",
-        "hw:1,0",
-        SAMPLE_RATE,
-        CHANNELS,
-        FORMAT,
-        ACCESS,
-        ALSA_BUFFER_SIZE as i64,
-    )?;
+    let (pcm_a, pcm_b) = setup_pcm("hw:0,0", "hw:1,0")?;
 
     let recorder = Recorder::new([pcm_a, pcm_b], 3)?;
 

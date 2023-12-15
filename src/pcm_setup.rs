@@ -1,18 +1,23 @@
-use alsa::{pcm::{PCM, HwParams, Format, Access, Frames}, Direction};
+use alsa::{
+    pcm::{HwParams, PCM},
+    Direction,
+};
 use std::error::Error;
 
-pub fn setup_pcm(a_device: &str, b_device: &str, sample_rate: u32, channels: u16, format: Format, access: Access, buffer_size: Frames) -> Result<(PCM, PCM), Box<dyn Error>> {
+use crate::{ACCESS, ALSA_BUFFER_SIZE, CHANNELS, FORMAT, SAMPLE_RATE};
+
+pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn Error>> {
     let pcm_a = PCM::new(a_device, Direction::Capture, false)?;
     let pcm_b = PCM::new(b_device, Direction::Capture, false)?;
 
     {
         // Limiting the scope of HwParams
         let hwp = HwParams::any(&pcm_a)?;
-        hwp.set_channels(channels.into())?;
-        hwp.set_rate(sample_rate, alsa::ValueOr::Nearest)?;
-        hwp.set_buffer_size(buffer_size)?;
-        hwp.set_format(format)?;
-        hwp.set_access(access)?;
+        hwp.set_channels(CHANNELS.into())?;
+        hwp.set_rate(SAMPLE_RATE, alsa::ValueOr::Nearest)?;
+        hwp.set_buffer_size(ALSA_BUFFER_SIZE as i64)?;
+        hwp.set_format(FORMAT)?;
+        hwp.set_access(ACCESS)?;
         pcm_a.hw_params(&hwp)?;
         pcm_b.hw_params(&hwp)?;
     }
