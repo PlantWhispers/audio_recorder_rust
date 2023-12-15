@@ -22,15 +22,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (pcm_a, pcm_b) = setup_pcm("hw:0,0", "hw:1,0")?;
 
-    let recorder = Recorder::new([pcm_a, pcm_b])?;
+    let _recorder = Recorder::new([pcm_a, pcm_b])?;
 
     // wait for keybord input
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
 
-    println!("Done");
-
-    drop(recorder);
-
+    println!("Recording stopped, writing to file... This may take a while.");
     Ok(())
 }
