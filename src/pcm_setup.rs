@@ -11,7 +11,6 @@ pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn E
     let pcm_b = PCM::new(b_device, Direction::Capture, false)?;
 
     {
-        // Limiting the scope of HwParams
         let hwp = HwParams::any(&pcm_a)?;
         hwp.set_channels(CHANNELS.into())?;
         hwp.set_rate(SAMPLE_RATE, alsa::ValueOr::Nearest)?;

@@ -16,10 +16,7 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    pub fn new(
-        // array of 2 PCM devices
-        pcm_devices: [PCM; 2],
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn new(pcm_devices: [PCM; 2]) -> Result<Self, Box<dyn Error>> {
         let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
             unbounded();
 
