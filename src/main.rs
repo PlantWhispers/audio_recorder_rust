@@ -13,6 +13,7 @@ const SAMPLE_RATE: u32 = 384_000;
 const CHANNELS: u16 = 1;
 const FORMAT: Format = Format::S16LE;
 const ACCESS: Access = Access::RWInterleaved;
+const ALSA_BUFFER_SIZE: usize = 19200; // Adjust as needed
 const BUFFER_SIZE: usize = 1920; // Adjust as needed
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         CHANNELS,
         FORMAT,
         ACCESS,
-        BUFFER_SIZE as i64,
+        ALSA_BUFFER_SIZE as i64,
     )?;
 
     let recorder = Recorder::new([pcm_a, pcm_b], 3)?;
