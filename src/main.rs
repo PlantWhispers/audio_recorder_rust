@@ -21,9 +21,9 @@ const N_OF_BUFFERS_PER_FILE: u32 = TIME_BETWEEN_RESETS_IN_S * SAMPLE_RATE / BUFF
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("recordings")?;
 
-    let (pcm_a, pcm_b) = setup_pcm("hw:0,0", "hw:1,0")?; // TODO: Retry if it fails
+    let (pcm_a, pcm_b) = setup_pcm("hw:0,0", "hw:1,0")?;
 
-    let _recorder = Recorder::new([pcm_a, pcm_b])?; // TODO: Retry if it fails
+    let _recorder = Recorder::new([pcm_a, pcm_b])?;
 
     // wait for keybord input
     let mut input = String::new();
