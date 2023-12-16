@@ -63,19 +63,19 @@ pub fn writing_thread_logic(receiver: Receiver<SharedBufferMessage>) -> Result<(
     for message in receiver {
         match message {
             EndThread => {
-                end_file(&mut file)?;
+                end_file(&mut file)?; // TODO: Error handling
                 break;
             }
             NewFile(filename) => {
-                end_file(&mut file)?; // Close the previous file (if any)
+                end_file(&mut file)?; // Close the previous file (if any) // TODO: Error handling
                 println!("Creating new file: {}", &filename);
-                let mut new_file = File::create(filename)?;
+                let mut new_file = File::create(filename)?; // TODO: Error handling (retry if file can't be created)
                 write_wav_header(
                     &mut new_file,
                     NUM_CHANNELS_IN_FILE,
                     SAMPLE_RATE,
                     BITS_PER_SAMPLE,
-                )?;
+                )?; // TODO: Error handling
                 file = Some(BufWriter::new(new_file));
             }
             Data(data) => {
@@ -85,7 +85,7 @@ pub fn writing_thread_logic(receiver: Receiver<SharedBufferMessage>) -> Result<(
                         buffer.extend_from_slice(&a.to_le_bytes());
                         buffer.extend_from_slice(&b.to_le_bytes());
                     }
-                    writer.write_all(&buffer)?;
+                    writer.write_all(&buffer)?; // TODO: Error handling
                 }
             }
         }

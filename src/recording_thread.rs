@@ -18,7 +18,7 @@ pub fn recording_thread_logic(
         .collect::<Vec<_>>();
 
     'outer: while !shutdown_signal.load(Ordering::SeqCst) {
-        sender.send(NewFile(new_file_name())).unwrap();
+        sender.send(NewFile(new_file_name())).unwrap(); // TODO: Error handling (if the channel is closed)
 
         for pcm_device in pcm_devices.iter() {
             match pcm_device.reset() {
@@ -39,13 +39,13 @@ pub fn recording_thread_logic(
             };
             match data {
                 (Ok(a), Ok(b)) => {
-                    sender.send(Data([a, b])).unwrap();
+                    sender.send(Data([a, b])).unwrap(); //TODO: Error handling (if the channel is closed)
                 }
                 _ => continue 'outer,
             }
         }
     }
-    sender.send(EndThread).unwrap();
+    sender.send(EndThread).unwrap(); //TODO: Error handling (if the channel is closed)
 }
 
 fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
@@ -53,7 +53,7 @@ fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<
     match pcm_io.readi(&mut buffer) {
         Ok(_) => Ok(buffer),
         Err(err) => {
-            pcm_device.try_recover(err, false)?;
+            pcm_device.try_recover(err, false)?; //TODO: If it can't recover, it should do something about it
             Err(err.into())
         }
     }

@@ -7,6 +7,7 @@ use std::error::Error;
 use crate::{ACCESS, ALSA_BUFFER_SIZE, CHANNELS, FORMAT, SAMPLE_RATE};
 
 pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn Error>> {
+    // TODO: Find devices automatically based on specs
     let pcm_a = PCM::new(a_device, Direction::Capture, false)?;
     let pcm_b = PCM::new(b_device, Direction::Capture, false)?;
 
