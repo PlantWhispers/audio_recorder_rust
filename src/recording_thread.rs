@@ -53,7 +53,9 @@ fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<
     match pcm_io.readi(&mut buffer) {
         Ok(_) => Ok(buffer),
         Err(err) => {
-            pcm_device.try_recover(err, false)?; //TODO: If it can't recover, it should do something about it
+            if pcm_device.try_recover(err, false).is_err() {
+                panic!("Failed to recover from ALSA error: {}", err);
+            }
             Err(err.into())
         }
     }
