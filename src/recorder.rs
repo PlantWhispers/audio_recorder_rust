@@ -9,9 +9,9 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 pub struct Recorder {
-    shutdown_signal: Arc<AtomicBool>,
-    record_thread: Option<JoinHandle<()>>,
-    write_thread: Option<JoinHandle<()>>,
+    recording_thread_shutdown_signal: Arc<AtomicBool>,
+    recording_thread: Option<JoinHandle<()>>,
+    writing_thread: Option<JoinHandle<()>>,
 }
 
 impl Recorder {
@@ -19,39 +19,40 @@ impl Recorder {
         let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
             unbounded();
 
-        let shutdown_signal = Arc::new(AtomicBool::new(false));
-        let shutdown_signal_clone = Arc::clone(&shutdown_signal);
+        let recording_thread_shutdown_signal = Arc::new(AtomicBool::new(false));
+        let recording_thread_shutdown_signal_clone = Arc::clone(&recording_thread_shutdown_signal);
 
-        let record_thread = {
+        let recording_thread = {
             thread::spawn(move || {
-                recording_thread_logic(pcm_devices, sender, shutdown_signal_clone)
+                recording_thread_logic(pcm_devices, sender, recording_thread_shutdown_signal_clone)
             })
         };
 
-        let write_thread = {
+        let writing_thread = {
             thread::spawn(move || {
                 writing_thread_logic(receiver).expect("Failed to write audio to file");
             })
         };
 
         Ok(Recorder {
-            shutdown_signal,
-            record_thread: Some(record_thread),
-            write_thread: Some(write_thread),
+            recording_thread_shutdown_signal,
+            recording_thread: Some(recording_thread),
+            writing_thread: Some(writing_thread),
         })
     }
 }
 
 impl Drop for Recorder {
     fn drop(&mut self) {
-        self.shutdown_signal.store(true, Ordering::SeqCst);
+        self.recording_thread_shutdown_signal
+            .store(true, Ordering::SeqCst);
 
-        if let Some(thread_handle) = self.record_thread.take() {
+        if let Some(thread_handle) = self.recording_thread.take() {
             thread_handle
                 .join()
                 .expect("Failed to join recording thread");
         }
-        if let Some(thread_handle) = self.write_thread.take() {
+        if let Some(thread_handle) = self.writing_thread.take() {
             thread_handle.join().expect("Failed to join writing thread");
         }
     }
