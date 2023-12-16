@@ -1,4 +1,4 @@
-use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
+use crate::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::SAMPLE_RATE;
 use crossbeam::channel::Receiver;
 use std::fs::File;
@@ -57,7 +57,7 @@ fn end_file(file: &mut Option<BufWriter<File>>) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn writing_thread_logic(receiver: Receiver<SharedBufferMessage>) -> Result<()> {
+pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) -> Result<()> {
     let mut file: Option<BufWriter<File>> = None;
 
     for message in receiver {

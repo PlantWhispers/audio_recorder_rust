@@ -1,4 +1,4 @@
-use crate::shared_buffer::SharedBufferMessage::{self, Data, EndThread, NewFile};
+use crate::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE};
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::Sender;
@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 pub fn recording_thread_logic(
     pcm_devices: [PCM; 2],
-    sender: Sender<SharedBufferMessage>,
+    sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
 ) {
     let pcm_ios = pcm_devices

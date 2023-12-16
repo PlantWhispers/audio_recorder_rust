@@ -1,5 +1,5 @@
+use crate::channel_messages::RecorderToWriterChannelMessage;
 use crate::recording_thread::recording_thread_logic;
-use crate::shared_buffer::SharedBufferMessage;
 use crate::writing_thread::writing_thread_logic;
 use alsa::pcm::PCM;
 use crossbeam::channel::{unbounded, Receiver, Sender};
@@ -16,8 +16,10 @@ pub struct Recorder {
 
 impl Recorder {
     pub fn new(pcm_devices: [PCM; 2]) -> Result<Self, Box<dyn Error>> {
-        let (sender, receiver): (Sender<SharedBufferMessage>, Receiver<SharedBufferMessage>) =
-            unbounded();
+        let (sender, receiver): (
+            Sender<RecorderToWriterChannelMessage>,
+            Receiver<RecorderToWriterChannelMessage>,
+        ) = unbounded();
 
         let recording_thread_shutdown_signal = Arc::new(AtomicBool::new(false));
         let recording_thread_shutdown_signal_clone = Arc::clone(&recording_thread_shutdown_signal);
