@@ -12,6 +12,9 @@ pub fn recording_thread_logic(
     sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
 ) {
+    pcm_devices[0].start().unwrap();
+    pcm_devices[1].start().unwrap();
+
     let pcm_ios = pcm_devices
         .iter()
         .map(|device| device.io_i16().unwrap())
