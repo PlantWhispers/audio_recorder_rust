@@ -35,13 +35,13 @@ pub fn recording_thread_logic(
     'outer: while !shutdown_signal.load(Ordering::SeqCst) {
         sender.send(NewFile(new_file_name())).unwrap();
 
-        let mut start_time: Option<Instant> = None;
-        let mut end_time: Option<Instant> = None;
-        enum AorB {
-            A,
-            B,
+        enum First {
+            Empty,
+            A(Instant),
+            B(Instant),
         }
-        let mut first: Option<AorB> = None;
+        use First::*;
+        let mut first: First = Empty;
 
         for pcm_device in pcm_devices.iter() {
             match pcm_device.reset() {
@@ -53,57 +53,41 @@ pub fn recording_thread_logic(
             }
         }
 
-        while end_time.is_none() {
+        let end_time = loop {
             unsafe { poll(pds.as_mut_ptr(), pds.len() as libc::nfds_t, 1000) };
             let time = std::time::Instant::now();
+            let a_has_data = pds[0].revents > 0;
+            let b_has_data = pds[1].revents > 0;
 
-            match (pds[0].revents > 0, pds[1].revents > 0, &first.is_none()) {
-                (false, false, true) | (true, false, false) | (false, true, false) => continue,
-                (true, false, true) => {
-                    first = Some(AorB::A);
-                    start_time = Some(time);
+            if a_has_data == b_has_data {
+                if a_has_data {
+                    break time; // Both devices have data
                 }
-                (false, true, true) => {
-                    first = Some(AorB::B);
-                    start_time = Some(time);
-                }
-                (true, true, false) => {
-                    end_time = Some(time);
-                }
-                (true, true, true) => {
-                    panic!("Both mics started at the same time")
-                }
-                (false, false, false) => {
-                    panic!("Invalid state")
-                }
+                continue; // No data on either device
             }
-        }
 
-        let delay = match (start_time, end_time) {
-            (Some(start), Some(end)) => end.duration_since(start),
-            _ => panic!("Timing failed"),
+            if let Empty = first {
+                first = if a_has_data { A(time) } else { B(time) };
+            }
         };
 
-        let frame_delay: i64 = (delay.as_secs_f64() * SAMPLE_RATE as f64).round() as i64;
-
-        println!(
-            "{:?} was {:?} (~{} frames) faster",
-            match first.as_ref().unwrap() {
-                AorB::A => "Mic A",
-                AorB::B => "Mic B",
-            },
-            delay,
-            frame_delay
-        );
-
-        let mut temp_buffer = vec![0i16; frame_delay as usize];
-
-        match first.unwrap() {
-            AorB::A => {
+        match first {
+            Empty => continue,
+            A(start) => {
+                let delay = end_time.duration_since(start);
+                let delay_in_frames: i64 =
+                    (delay.as_secs_f64() * SAMPLE_RATE as f64).round() as i64;
+                let mut temp_buffer = vec![0i16; delay_in_frames as usize];
                 pcm_ios[0].readi(&mut temp_buffer).unwrap();
+                println!("B was {:?} (~{} frames) later", delay, delay_in_frames);
             }
-            AorB::B => {
+            B(start) => {
+                let delay = end_time.duration_since(start);
+                let delay_in_frames: i64 =
+                    (delay.as_secs_f64() * SAMPLE_RATE as f64).round() as i64;
+                let mut temp_buffer = vec![0i16; delay_in_frames as usize];
                 pcm_ios[1].readi(&mut temp_buffer).unwrap();
+                println!("A was {:?} (~{} frames) later", delay, delay_in_frames);
             }
         }
 
