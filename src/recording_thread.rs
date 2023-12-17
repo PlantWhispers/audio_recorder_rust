@@ -1,7 +1,9 @@
 use crate::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
-use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE};
+use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE, SAMPLE_RATE};
 use alsa::pcm::{IO, PCM};
+use alsa::PollDescriptors;
 use crossbeam::channel::Sender;
+use libc::pollfd;
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -20,6 +22,16 @@ pub fn recording_thread_logic(
         .map(|device| device.io_i16().unwrap())
         .collect::<Vec<_>>();
 
+    let mut pds: Vec<pollfd> = pcm_devices
+        .iter()
+        .map(|device| {
+            let mut fd = PollDescriptors::get(device).unwrap()[0];
+            fd.events = libc::POLLIN;
+            fd.revents = 0;
+            fd
+        })
+        .collect();
+
     'outer: while !shutdown_signal.load(Ordering::SeqCst) {
         sender.send(NewFile(new_file_name())).unwrap();
 
@@ -32,6 +44,17 @@ pub fn recording_thread_logic(
                 }
             }
         }
+
+        while (unsafe { libc::poll(pds.as_mut_ptr(), 2, 1000) } != 1) {}
+
+        let time = std::time::Instant::now();
+
+        while (unsafe { libc::poll(pds.as_mut_ptr(), 2, 1000) } != 2) {}
+
+        let delay = time.elapsed();
+        let frame_delay: i64 = (delay.as_secs_f64() * SAMPLE_RATE as f64).round() as i64;
+
+        println!("Delay: {:?} (~{} frames)", delay, frame_delay);
 
         for _ in 0..N_OF_BUFFERS_PER_FILE {
             let data = {

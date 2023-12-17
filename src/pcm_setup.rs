@@ -4,7 +4,7 @@ use alsa::{
 };
 use std::error::Error;
 
-use crate::{ACCESS, ALSA_BUFFER_SIZE, CHANNELS, FORMAT, SAMPLE_RATE};
+use crate::{ACCESS, ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS, FORMAT, SAMPLE_RATE};
 
 pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn Error>> {
     // TODO: Find devices automatically based on specs
@@ -16,6 +16,7 @@ pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn E
         hwp.set_channels(CHANNELS.into())?;
         hwp.set_rate(SAMPLE_RATE, alsa::ValueOr::Nearest)?;
         hwp.set_buffer_size(ALSA_BUFFER_SIZE as i64)?;
+        hwp.set_period_size(BUFFER_SIZE as i64, alsa::ValueOr::Nearest)?;
         hwp.set_format(FORMAT)?;
         hwp.set_access(ACCESS)?;
         pcm_a.hw_params(&hwp)?;

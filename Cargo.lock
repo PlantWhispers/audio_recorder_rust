@@ -46,6 +46,7 @@ dependencies = [
  "alsa",
  "chrono",
  "crossbeam",
+ "libc",
 ]
 
 [[package]]
