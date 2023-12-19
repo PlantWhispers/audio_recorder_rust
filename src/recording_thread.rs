@@ -1,4 +1,5 @@
 use crate::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
+use crate::pcm_setup::setup_pcm;
 use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE, SAMPLE_RATE};
 use alsa::pcm::{IO, PCM};
 use alsa::PollDescriptors;
@@ -10,12 +11,14 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
 pub fn recording_thread_logic(
-    pcm_devices: [PCM; 2],
     sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
 ) {
+    let pcm_devices = setup_pcm().unwrap();
+
+    pcm_devices[0].link(&pcm_devices[1]).unwrap();
+
     pcm_devices[0].start().unwrap();
-    pcm_devices[1].start().unwrap();
 
     let pcm_ios = pcm_devices
         .iter()
@@ -32,26 +35,20 @@ pub fn recording_thread_logic(
         })
         .collect();
 
+    enum First {
+        Empty,
+        A(Instant),
+        B(Instant),
+    }
+    use First::*;
+
     'outer: while !shutdown_signal.load(Ordering::SeqCst) {
         sender.send(NewFile(new_file_name())).unwrap();
 
-        enum First {
-            Empty,
-            A(Instant),
-            B(Instant),
-        }
-        use First::*;
         let mut first: First = Empty;
 
-        for pcm_device in pcm_devices.iter() {
-            match pcm_device.reset() {
-                Ok(_) => {}
-                Err(err) => {
-                    pcm_device.try_recover(err, false).unwrap();
-                    continue 'outer;
-                }
-            }
-        }
+        pcm_devices[0].reset().unwrap();
+        pcm_devices[1].reset().unwrap();
 
         let end_time = loop {
             unsafe { poll(pds.as_mut_ptr(), pds.len() as libc::nfds_t, 1000) };
@@ -72,7 +69,7 @@ pub fn recording_thread_logic(
         };
 
         match first {
-            Empty => continue,
+            Empty => {}
             A(start) => {
                 let delay = end_time.duration_since(start);
                 let delay_in_frames: i64 =

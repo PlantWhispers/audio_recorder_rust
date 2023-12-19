@@ -1,7 +1,6 @@
 use crate::channel_messages::RecorderToWriterChannelMessage;
 use crate::recording_thread::recording_thread_logic;
 use crate::writing_thread::writing_thread_logic;
-use alsa::pcm::PCM;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,7 +14,7 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    pub fn new(pcm_devices: [PCM; 2]) -> Result<Self, Box<dyn Error>> {
+    pub fn new() -> Result<Self, Box<dyn Error>> {
         let (sender, receiver): (
             Sender<RecorderToWriterChannelMessage>,
             Receiver<RecorderToWriterChannelMessage>,
@@ -26,7 +25,7 @@ impl Recorder {
 
         let recording_thread = {
             thread::spawn(move || {
-                recording_thread_logic(pcm_devices, sender, recording_thread_shutdown_signal_clone)
+                recording_thread_logic(sender, recording_thread_shutdown_signal_clone)
             })
         };
 

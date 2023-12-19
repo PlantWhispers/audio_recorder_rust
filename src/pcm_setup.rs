@@ -4,12 +4,12 @@ use alsa::{
 };
 use std::error::Error;
 
-use crate::{ACCESS, ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS, FORMAT, SAMPLE_RATE};
+use crate::{ACCESS, ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS, DEVICE_NAMES, FORMAT, SAMPLE_RATE};
 
-pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn Error>> {
+pub fn setup_pcm() -> Result<[PCM; 2], Box<dyn Error>> {
     // TODO: Find devices automatically based on specs
-    let pcm_a = PCM::new(a_device, Direction::Capture, false)?;
-    let pcm_b = PCM::new(b_device, Direction::Capture, false)?;
+    let pcm_a = PCM::new(DEVICE_NAMES[0], Direction::Capture, false)?;
+    let pcm_b = PCM::new(DEVICE_NAMES[1], Direction::Capture, false)?;
 
     {
         let hwp = HwParams::any(&pcm_a)?;
@@ -23,5 +23,5 @@ pub fn setup_pcm(a_device: &str, b_device: &str) -> Result<(PCM, PCM), Box<dyn E
         pcm_b.hw_params(&hwp)?;
     }
 
-    Ok((pcm_a, pcm_b))
+    Ok([pcm_a, pcm_b])
 }
