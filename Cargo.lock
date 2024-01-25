@@ -47,6 +47,7 @@ dependencies = [
  "chrono",
  "crossbeam",
  "libc",
+ "rppal",
 ]
 
 [[package]]
@@ -275,6 +276,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5267fca4496028628a95160fc423a33e8b2e6af8a5302579e322e4b520293cae"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "rppal"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dc171bbe325b04172e18d917c58c2cf1fb5adfd9ffabb1d6b3d62ba4c1c1331"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
