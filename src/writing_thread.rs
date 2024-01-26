@@ -6,6 +6,7 @@ use std::io::{BufWriter, Result, Seek, SeekFrom, Write};
 
 const BITS_PER_SAMPLE: u16 = 16;
 const NUM_CHANNELS_IN_FILE: u16 = 2;
+const TEMP_FILE_PATH: &str = "recordings/.temp.raw.wav";
 
 fn write_wav_header(
     file: &mut File,
@@ -48,17 +49,21 @@ fn update_wav_header(file: &mut File) -> std::io::Result<()> {
     Ok(())
 }
 
-fn end_file(file: &mut Option<BufWriter<File>>) -> std::io::Result<()> {
-    if let Some(mut buf_file) = file.take() {
+fn end_file(file: &mut Option<(BufWriter<File>, String)>) -> std::io::Result<()> {
+    if let Some((mut buf_file, filename)) = file.take() {
         buf_file.flush()?; // Ensure all data is written to disk
         let mut inner_file = buf_file.into_inner()?; // Get the underlying File
         update_wav_header(&mut inner_file)?; // Update the header with the correct file size
+        println!("File written: {}", &filename);
+        std::fs::rename(TEMP_FILE_PATH, filename)?; // Rename the file to the correct name
     }
     Ok(())
 }
 
 pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) -> Result<()> {
-    let mut file: Option<BufWriter<File>> = None;
+    let mut file: Option<(BufWriter<File>, String)> = None;
+    // let mut file: Option<BufWriter<File>> = None;
+    // let mut file_name: Option<String> = None;
 
     for message in receiver {
         match message {
@@ -68,18 +73,17 @@ pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) 
             }
             NewFile(filename) => {
                 end_file(&mut file)?; // Close the previous file (if any)
-                println!("Creating new file: {}", &filename);
-                let mut new_file = File::create(filename)?;
+                let mut new_file = File::create(TEMP_FILE_PATH)?;
                 write_wav_header(
                     &mut new_file,
                     NUM_CHANNELS_IN_FILE,
                     SAMPLE_RATE,
                     BITS_PER_SAMPLE,
                 )?;
-                file = Some(BufWriter::new(new_file));
+                file = Some((BufWriter::new(new_file), filename.clone()));
             }
             Data(data) => {
-                if let Some(ref mut writer) = file {
+                if let Some((ref mut writer, _)) = file {
                     let mut buffer = Vec::new();
                     for (a, b) in data[0].iter().zip(data[1].iter()) {
                         buffer.extend_from_slice(&a.to_le_bytes());

@@ -72,7 +72,7 @@ fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<
 
 fn new_file_name() -> String {
     format!(
-        "recordings/{}.wav",
+        "recordings/{}.raw.wav",
         SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
