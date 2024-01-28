@@ -1,16 +1,17 @@
+mod utils;
 use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
     self, Data, EndThread, NewFile,
 };
 use crate::utils::pcm_setup::setup_pcm;
-use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE};
-use alsa::pcm::{IO, PCM};
+use crate::N_OF_BUFFERS_PER_FILE;
 use crossbeam::channel::Sender;
 use rppal::gpio::Gpio;
-use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+use utils::get_mic_data;
+use utils::new_file_name;
 
 pub fn recording_thread_logic(
     sender: Sender<RecorderToWriterChannelMessage>,
@@ -57,27 +58,4 @@ pub fn recording_thread_logic(
         }
     }
     sender.send(EndThread).unwrap();
-}
-
-fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
-    let mut buffer = vec![0i16; BUFFER_SIZE];
-    match pcm_io.readi(&mut buffer) {
-        Ok(_) => Ok(buffer),
-        Err(err) => {
-            if pcm_device.try_recover(err, false).is_err() {
-                panic!("Failed to recover from ALSA error: {}", err);
-            }
-            Err(err.into())
-        }
-    }
-}
-
-fn new_file_name() -> String {
-    format!(
-        "recordings/{}.raw.wav",
-        SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs(),
-    )
 }
