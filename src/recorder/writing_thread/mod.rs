@@ -1,11 +1,11 @@
-mod utils;
+mod wav_utils;
 use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::config::SAMPLE_RATE;
 use crossbeam::channel::Receiver;
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
-use utils::end_file;
-use utils::write_wav_header;
+use wav_utils::end_file;
+use wav_utils::write_wav_header;
 
 const BITS_PER_SAMPLE: u16 = 16;
 const NUM_CHANNELS_IN_FILE: u16 = 2;
