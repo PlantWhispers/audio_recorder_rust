@@ -6,7 +6,7 @@ use std::io::{BufWriter, Result, Seek, SeekFrom, Write};
 
 const BITS_PER_SAMPLE: u16 = 16;
 const NUM_CHANNELS_IN_FILE: u16 = 2;
-const TEMP_FILE_PATH: &str = "recordings/.temp.raw.wav";
+const TEMP_FILE_PATH: &str = "recordings/.temp.raw";
 
 fn write_wav_header(
     file: &mut File,

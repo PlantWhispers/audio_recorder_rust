@@ -1,10 +1,9 @@
+use crate::{ACCESS, ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS, DEVICE_NAMES, FORMAT, SAMPLE_RATE};
 use alsa::{
     pcm::{HwParams, PCM},
     Direction,
 };
 use std::error::Error;
-
-use crate::{ACCESS, ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS, DEVICE_NAMES, FORMAT, SAMPLE_RATE};
 
 pub fn setup_pcm() -> Result<[PCM; 2], Box<dyn Error>> {
     // TODO: Find devices automatically based on specs
