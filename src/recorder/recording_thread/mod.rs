@@ -1,9 +1,9 @@
 mod utils;
+use crate::config::N_OF_BUFFERS_PER_FILE;
 use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
     self, Data, EndThread, NewFile,
 };
 use crate::utils::pcm_setup::setup_pcm;
-use crate::N_OF_BUFFERS_PER_FILE;
 use crossbeam::channel::Sender;
 use rppal::gpio::Gpio;
 use std::sync::atomic::{AtomicBool, Ordering};

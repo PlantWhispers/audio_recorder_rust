@@ -1,4 +1,4 @@
-use crate::BUFFER_SIZE;
+use crate::config::BUFFER_SIZE;
 use alsa::pcm::{IO, PCM};
 use std::error::Error;
 use std::time::SystemTime;
