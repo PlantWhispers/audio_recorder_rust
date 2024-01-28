@@ -1,11 +1,14 @@
-use crate::channel_messages::RecorderToWriterChannelMessage;
-use crate::recording_thread::recording_thread_logic;
-use crate::writing_thread::writing_thread_logic;
+pub mod recording_thread;
+pub mod writing_thread;
+
+use crate::utils::channel_messages::RecorderToWriterChannelMessage;
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use recording_thread::recording_thread_logic;
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
+use writing_thread::writing_thread_logic;
 
 pub struct Recorder {
     recording_thread_shutdown_signal: Arc<AtomicBool>,

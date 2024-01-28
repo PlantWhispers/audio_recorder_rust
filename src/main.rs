@@ -1,8 +1,5 @@
-mod channel_messages;
-mod pcm_setup;
-mod recorder;
-mod recording_thread;
-mod writing_thread;
+pub mod recorder;
+pub mod utils;
 
 use alsa::pcm::{Access, Format};
 use recorder::Recorder;

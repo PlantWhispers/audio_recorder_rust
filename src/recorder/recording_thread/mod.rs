@@ -1,5 +1,7 @@
-use crate::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
-use crate::pcm_setup::setup_pcm;
+use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
+    self, Data, EndThread, NewFile,
+};
+use crate::utils::pcm_setup::setup_pcm;
 use crate::{BUFFER_SIZE, N_OF_BUFFERS_PER_FILE};
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::Sender;

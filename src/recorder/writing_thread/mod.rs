@@ -1,4 +1,6 @@
-use crate::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
+use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
+    self, Data, EndThread, NewFile,
+};
 use crate::SAMPLE_RATE;
 use crossbeam::channel::Receiver;
 use std::fs::File;
