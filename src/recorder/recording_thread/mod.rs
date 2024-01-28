@@ -1,15 +1,13 @@
 mod utils;
-use crate::config::N_OF_BUFFERS_PER_FILE;
+use crate::config::{N_OF_BUFFERS_PER_FILE, SOUND_EMITTER_TRIGGER_PIN};
 use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
     self, Data, EndThread, NewFile,
 };
+use crate::utils::hc_sr04::HcSr04SoundEmitter;
 use crate::utils::pcm_setup::setup_pcm;
 use crossbeam::channel::Sender;
-use rppal::gpio::Gpio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 use utils::get_mic_data;
 use utils::new_file_name;
 
@@ -19,9 +17,7 @@ pub fn recording_thread_logic(
 ) {
     let pcm_devices = setup_pcm().unwrap();
 
-    let gpio = Gpio::new().unwrap();
-    let mut tranciver_trigger = gpio.get(2).unwrap().into_output();
-    tranciver_trigger.set_low();
+    let mut sound_emitter = HcSr04SoundEmitter::new(SOUND_EMITTER_TRIGGER_PIN);
 
     pcm_devices[0].link(&pcm_devices[1]).unwrap();
 
@@ -38,9 +34,7 @@ pub fn recording_thread_logic(
 
         pcm_devices[0].reset().unwrap();
 
-        tranciver_trigger.set_high();
-        thread::sleep(Duration::from_micros(10));
-        tranciver_trigger.set_low();
+        sound_emitter.emit_sound();
 
         for _ in 0..N_OF_BUFFERS_PER_FILE {
             let data = {
