@@ -1,3 +1,6 @@
+/// HcSr04 Sound Emitter Module
+///
+/// Provides functionality to control the HC-SR04 sound emitter, particularly for triggering sound emissions.
 use rppal::gpio::{Gpio, OutputPin};
 use std::{thread, time::Duration};
 
