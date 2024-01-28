@@ -1,9 +1,6 @@
 use super::TEMP_FILE_PATH;
 use std::fs::File;
-use std::io::BufWriter;
-use std::io::Seek;
-use std::io::SeekFrom;
-use std::io::Write;
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 
 pub(crate) fn write_wav_header(
     file: &mut File,

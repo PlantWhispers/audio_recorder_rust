@@ -1,6 +1,5 @@
-use std::{thread, time::Duration};
-
 use rppal::gpio::{Gpio, OutputPin};
+use std::{thread, time::Duration};
 
 pub struct HcSr04SoundEmitter {
     trigger: OutputPin,
