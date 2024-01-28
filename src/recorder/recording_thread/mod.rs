@@ -1,8 +1,6 @@
 mod utils;
+use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::config::{N_OF_BUFFERS_PER_FILE, SOUND_EMITTER_TRIGGER_PIN};
-use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
-    self, Data, EndThread, NewFile,
-};
 use crate::utils::hc_sr04::HcSr04SoundEmitter;
 use crate::utils::pcm_setup::setup_pcm;
 use crossbeam::channel::Sender;

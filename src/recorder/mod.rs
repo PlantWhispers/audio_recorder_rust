@@ -1,7 +1,8 @@
+mod channel_messages;
 pub mod recording_thread;
 pub mod writing_thread;
 
-use crate::utils::channel_messages::RecorderToWriterChannelMessage;
+use channel_messages::RecorderToWriterChannelMessage;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use recording_thread::recording_thread_logic;
 use std::error::Error;
