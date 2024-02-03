@@ -15,7 +15,7 @@ pub fn recording_thread_logic(
     sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
 ) {
-    let mut sound_emitter = HcSr04SoundEmitter::new(SOUND_EMITTER_TRIGGER_PIN);
+    let mut sound_emitter = HcSr04SoundEmitter::new(SOUND_EMITTER_TRIGGER_PIN).unwrap();
 
     let pcm_devices = setup_pcm().unwrap();
     pcm_devices[0].link(&pcm_devices[1]).unwrap();
