@@ -1,4 +1,4 @@
-use crate::config::BUFFER_SIZE;
+use crate::config::{BUFFER_SIZE, EXPERIMENT_NAME, SOUNDFOLDER_PATH};
 use alsa::pcm::{IO, PCM};
 use std::error::Error;
 use std::time::SystemTime;
@@ -18,7 +18,9 @@ pub fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, 
 
 pub fn new_file_name() -> String {
     format!(
-        "recordings/{}.raw.wav",
+        "{}{}/{}.wav",
+        SOUNDFOLDER_PATH,
+        EXPERIMENT_NAME,
         SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

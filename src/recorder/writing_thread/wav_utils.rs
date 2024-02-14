@@ -1,4 +1,5 @@
-use super::TEMP_FILE_PATH;
+use super::TEMP_FILE_NAME;
+use crate::config::SOUNDFOLDER_PATH;
 use std::fs::File;
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 
@@ -49,7 +50,9 @@ pub(crate) fn end_file(file: &mut Option<(BufWriter<File>, String)>) -> std::io:
         let mut inner_file = buf_file.into_inner()?; // Get the underlying File
         update_wav_header(&mut inner_file)?; // Update the header with the correct file size
         println!("File written: {}", &filename);
-        std::fs::rename(TEMP_FILE_PATH, filename)?; // Rename the file to the correct name
+        std::fs::create_dir_all(filename.rsplitn(2, '/').last().unwrap())?; // Create the folder if it doesn't exist
+        std::fs::rename(format!("{}{}", SOUNDFOLDER_PATH, TEMP_FILE_NAME), filename)?;
+        // Rename the file to the correct name
     }
     Ok(())
 }
