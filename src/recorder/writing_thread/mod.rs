@@ -12,17 +12,17 @@ const TEMP_FILE_NAME: &str = ".temp.raw";
 
 pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) -> Result<()> {
     let mut file: Option<(BufWriter<File>, String)> = None;
+    let temp_file_path = format!("{}{}", SOUNDFOLDER_PATH, TEMP_FILE_NAME);
 
     for message in receiver {
         match message {
             EndThread => {
-                end_file(&mut file)?;
+                end_file(&mut file, &temp_file_path)?;
                 break;
             }
             NewFile(filename) => {
-                end_file(&mut file)?; // Close the previous file (if any)
-                let temp_file_path = format!("{}{}", SOUNDFOLDER_PATH, TEMP_FILE_NAME);
-                let mut new_file = File::create(temp_file_path)?;
+                end_file(&mut file, &temp_file_path)?; // Close the previous file (if any)
+                let mut new_file = File::create(&temp_file_path)?;
                 write_wav_header(
                     &mut new_file,
                     NUM_CHANNELS_IN_FILE,
