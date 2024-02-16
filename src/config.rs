@@ -1,11 +1,11 @@
 use alsa::pcm::{Access, Format};
 
-// Should be configurable after compiling in toml file
+// Default values
 pub const DEFAULT_DEVICE_NAMES: &str = "hw:0,0;hw:1,0";
 pub const DEFAULT_FILE_DURATION: &str = "30";
 pub const DEFAULT_SOUND_EMITTER_TRIGGER_PIN: &str = "2";
 
-// Should be hardcoded
+// Hardcoded values
 pub const SAMPLE_RATE: u32 = 384_000;
 pub const FORMAT: Format = Format::S16LE;
 pub const PCM_DEVICE_ACCESS: Access = Access::RWInterleaved;
