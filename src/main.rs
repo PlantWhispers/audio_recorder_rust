@@ -1,8 +1,13 @@
 mod config;
 pub mod recorder;
 pub mod utils;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use std::thread;
+
 use clap::{App, Arg};
-use recorder::Recorder;
+use crossbeam::channel::{unbounded, Receiver, Sender};
+use recorder::channel_messages::RecorderToWriterChannelMessage;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = App::new("Plantwhispers Recorder")
@@ -69,12 +74,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Time Between Resets: {}", file_duration_in_seconds);
     println!("Trigger Pin: {}", trigger_pin);
 
-    let _recorder = Recorder::new()?;
+    // Logic
+
+    let (tx, rx): (
+        Sender<RecorderToWriterChannelMessage>,
+        Receiver<RecorderToWriterChannelMessage>,
+    ) = unbounded();
+
+    let recorder_shutdown_signal = Arc::new(AtomicBool::new(false));
+    let recorder_shutdown_signal_clone = Arc::clone(&recorder_shutdown_signal);
+
+    let _recorder_thread = {
+        thread::spawn(move || {
+            recorder::recording_thread::recording_thread_logic(tx, recorder_shutdown_signal_clone)
+        })
+    };
+
+    let _writer_thread = {
+        thread::spawn(move || {
+            recorder::writing_thread::writing_thread_logic(rx).expect("Writing thread failed");
+        })
+    };
 
     // wait for keybord input
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
 
     println!("Recording stopped, writing to file... This may take a while.");
+
+    recorder_shutdown_signal.store(true, std::sync::atomic::Ordering::SeqCst);
+
+    _recorder_thread
+        .join()
+        .expect("Failed to join recording thread");
+    _writer_thread
+        .join()
+        .expect("Failed to join writing thread");
+
     Ok(())
 }
