@@ -1,13 +1,9 @@
 mod config;
 pub mod recorder;
 pub mod utils;
-
 use recorder::Recorder;
-use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all("recordings")?;
-
     let _recorder = Recorder::new()?;
 
     // wait for keybord input
