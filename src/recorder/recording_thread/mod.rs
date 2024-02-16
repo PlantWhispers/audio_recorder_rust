@@ -1,37 +1,47 @@
 mod utils;
 use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
-use crate::{
-    config::{BUFFER_SIZE, SAMPLE_RATE, SOUND_EMITTER_TRIGGER_PIN, TIME_BETWEEN_RESETS_IN_S},
-    utils::{hc_sr04::HcSr04SoundEmitter, pcm_setup::setup_pcm},
-};
+use crate::config::{BUFFER_SIZE, SAMPLE_RATE};
 use crossbeam::channel::Sender;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::SystemTime,
 };
-use utils::{get_mic_data, new_file_name};
+use utils::get_mic_data;
 
-pub fn recording_thread_logic(
+pub fn recording_thread_logic<F: FnMut()>(
     sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
+    pcm_devices: [alsa::pcm::PCM; 2],
+    file_duration: u32,
+    mut emitt_sound: F,
+    destination_path: String,
 ) {
-    let mut sound_emitter = HcSr04SoundEmitter::new(SOUND_EMITTER_TRIGGER_PIN).unwrap();
-
-    let pcm_devices = setup_pcm().unwrap();
-    pcm_devices[0].link(&pcm_devices[1]).unwrap();
     pcm_devices[0].start().unwrap();
     let pcm_ios = pcm_devices
         .iter()
         .map(|device| device.io_i16().unwrap())
         .collect::<Vec<_>>();
-    let n_of_buffers_per_file = TIME_BETWEEN_RESETS_IN_S * SAMPLE_RATE / BUFFER_SIZE as u32;
+    let n_of_buffers_per_file = file_duration * SAMPLE_RATE / BUFFER_SIZE as u32;
 
     // Main recording loop
     'main_recording_loop: while !shutdown_signal.load(Ordering::SeqCst) {
-        sender.send(NewFile(new_file_name())).unwrap();
+        let file_name = format!(
+            "{}/{}.wav",
+            destination_path,
+            SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
+
+        sender.send(NewFile(file_name)).unwrap();
 
         pcm_devices[0].reset().unwrap();
-        sound_emitter.emit_sound();
+
+        emitt_sound();
 
         for _ in 0..n_of_buffers_per_file {
             let data = {

@@ -9,8 +9,13 @@ use clap::{App, Arg};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use recorder::channel_messages::RecorderToWriterChannelMessage;
 
+use crate::{
+    config::{DEFAULT_DEVICE_NAMES, DEFAULT_FILE_DURATION, DEFAULT_SOUND_EMITTER_TRIGGER_PIN},
+    utils::pcm_setup::setup_pcm,
+};
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = App::new("Plantwhispers Recorder")
+    let command_line_arguments = App::new("Plantwhispers Recorder")
             .version("1.0")
             .author("Simon Puschmann <imnos>")
             .about("Autonomous audio recorder for plant research.")
@@ -47,32 +52,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .get_matches();
 
     // Mandatory argument
-    let destination_path = matches.value_of("destination").unwrap();
+    let destination_path: String = command_line_arguments
+        .value_of("destination")
+        .unwrap()
+        .to_string();
 
     // Optional arguments with defaults
-    let device_names: Vec<&str> = matches
+    let device_names: Vec<&str> = command_line_arguments
         .value_of("device_names")
-        .unwrap_or("hw:0,0;hw:1,0")
+        .unwrap_or(DEFAULT_DEVICE_NAMES)
         .split(';')
         .map(|s| s.trim())
         .collect();
+    // TODO: Test
     // TODO: Check if device names are valid
-    let file_duration_in_seconds = matches
+    let file_duration_in_seconds = command_line_arguments
         .value_of("file_duration")
-        .unwrap_or("30")
+        .unwrap_or(DEFAULT_FILE_DURATION)
         .parse::<u32>()
         .expect("Time between resets should be an unsigned integer");
-    let trigger_pin = matches
+    let trigger_pin = command_line_arguments
         .value_of("emmiter_pin")
-        .unwrap_or("2")
+        .unwrap_or(DEFAULT_SOUND_EMITTER_TRIGGER_PIN)
         .parse::<u8>()
         .expect("Trigger pin should be an unsigned integer");
-
-    // Use the arguments as needed
-    println!("Destination Path: {}", destination_path);
-    println!("Device Names: {:?}", device_names);
-    println!("Time Between Resets: {}", file_duration_in_seconds);
-    println!("Trigger Pin: {}", trigger_pin);
 
     // Logic
 
@@ -81,12 +84,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Receiver<RecorderToWriterChannelMessage>,
     ) = unbounded();
 
-    let recorder_shutdown_signal = Arc::new(AtomicBool::new(false));
-    let recorder_shutdown_signal_clone = Arc::clone(&recorder_shutdown_signal);
+    let shutdown_signal = Arc::new(AtomicBool::new(false));
+    let shutdown_signal_clone = Arc::clone(&shutdown_signal);
+    let pcm_devices = setup_pcm(device_names).unwrap();
+    let mut sound_emitter = utils::hc_sr04::HcSr04SoundEmitter::new(trigger_pin).unwrap();
+    let emitt_sound = move || sound_emitter.emit_sound();
+    // TODO: TEST sound emitter!
 
     let _recorder_thread = {
         thread::spawn(move || {
-            recorder::recording_thread::recording_thread_logic(tx, recorder_shutdown_signal_clone)
+            recorder::recording_thread::recording_thread_logic(
+                tx,
+                shutdown_signal_clone,
+                pcm_devices,
+                file_duration_in_seconds,
+                emitt_sound,
+                destination_path,
+            );
         })
     };
 
@@ -102,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Recording stopped, writing to file... This may take a while.");
 
-    recorder_shutdown_signal.store(true, std::sync::atomic::Ordering::SeqCst);
+    shutdown_signal.store(true, std::sync::atomic::Ordering::SeqCst);
 
     _recorder_thread
         .join()

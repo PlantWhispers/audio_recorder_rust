@@ -3,8 +3,7 @@
 /// Handles the setup of PCM (Pulse-code modulation) devices for audio recording. It configures the devices
 /// based on predefined settings from the `config` module.
 use crate::config::{
-    ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS_PER_MIC, DEVICE_NAMES, FORMAT, PCM_DEVICE_ACCESS,
-    SAMPLE_RATE,
+    ALSA_BUFFER_SIZE, BUFFER_SIZE, CHANNELS_PER_MIC, FORMAT, PCM_DEVICE_ACCESS, SAMPLE_RATE,
 };
 use alsa::{
     pcm::{HwParams, PCM},
@@ -12,10 +11,10 @@ use alsa::{
 };
 use std::error::Error;
 
-pub fn setup_pcm() -> Result<[PCM; 2], Box<dyn Error>> {
+pub fn setup_pcm(names: Vec<&str>) -> Result<[PCM; 2], Box<dyn Error>> {
     // TODO: Find devices automatically based on specs
-    let pcm_a = PCM::new(DEVICE_NAMES[0], Direction::Capture, false)?;
-    let pcm_b = PCM::new(DEVICE_NAMES[1], Direction::Capture, false)?;
+    let pcm_a = PCM::new(names[0], Direction::Capture, false)?;
+    let pcm_b = PCM::new(names[1], Direction::Capture, false)?;
 
     {
         let hwp = HwParams::any(&pcm_a)?;
