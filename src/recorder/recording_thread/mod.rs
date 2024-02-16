@@ -3,6 +3,7 @@ use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThr
 use crate::config::{BUFFER_SIZE, SAMPLE_RATE};
 use crossbeam::channel::Sender;
 use std::{
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -17,7 +18,7 @@ pub fn recording_thread_logic<F: FnMut()>(
     pcm_devices: [alsa::pcm::PCM; 2],
     file_duration: u32,
     mut emitt_sound: F,
-    destination_path: String,
+    destination_folder: PathBuf,
 ) {
     pcm_devices[0].start().unwrap();
     let pcm_ios = pcm_devices
@@ -29,15 +30,15 @@ pub fn recording_thread_logic<F: FnMut()>(
     // Main recording loop
     'main_recording_loop: while !shutdown_signal.load(Ordering::SeqCst) {
         let file_name = format!(
-            "{}/{}.wav",
-            destination_path,
+            "{}.wav",
             SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs()
         );
+        let file_path = destination_folder.join(file_name);
 
-        sender.send(NewFile(file_name)).unwrap();
+        sender.send(NewFile(file_path)).unwrap();
 
         pcm_devices[0].reset().unwrap();
 

@@ -19,9 +19,10 @@ pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) 
                 end_file(&mut file)?;
                 break;
             }
-            NewFile(filename) => {
+            NewFile(path) => {
                 end_file(&mut file)?; // Close the previous file (if any)
-                let mut new_file = File::create(filename)?;
+                                      // TODO: Create folder if it doesn't exist
+                let mut new_file = File::create(path)?;
                 write_wav_header(
                     &mut new_file,
                     NUM_CHANNELS_IN_FILE,

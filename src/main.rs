@@ -1,9 +1,9 @@
 mod config;
 pub mod recorder;
 pub mod utils;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread;
+use std::{path::PathBuf, sync::atomic::AtomicBool};
 
 use clap::{App, Arg};
 use crossbeam::channel::{unbounded, Receiver, Sender};
@@ -20,13 +20,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .author("Simon Puschmann <imnos>")
             .about("Autonomous audio recorder for plant research.")
             .arg(
-                Arg::with_name("destination")
-                    .short("d")
-                    .long("destination")
-                    .value_name("DEST_PATH")
-                    .help("Sets the sound file destination path")
+                Arg::with_name("experiment_name")
+                    .short("n")
+                    .long("experiment-name")
+                    .value_name("EXPERIMENT_NAME")
+                    .help("Sets the name of the current experiment")
                     .takes_value(true)
                     .required(true),
+            )
+            .arg( Arg::with_name("path")
+                .short("p")
+                .long("path")
+                .value_name("PATH")
+                .help("Sets the path to the folder where the sound files will be stored")
+                .takes_value(true)
             )
             .arg(
                 Arg::with_name("device_names")
@@ -52,12 +59,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .get_matches();
 
     // Mandatory argument
-    let destination_path: String = command_line_arguments
-        .value_of("destination")
+    let experiment_name: PathBuf = command_line_arguments
+        .value_of("experiment_name")
         .unwrap()
-        .to_string();
+        .parse()
+        .expect("Name of the experiment did not parse to a valid path");
 
     // Optional arguments with defaults
+    let sound_path: PathBuf = command_line_arguments
+        .value_of("path")
+        .unwrap_or("./")
+        .parse()
+        .expect("Path did not parse to a valid path");
+    let destination_path = sound_path.join(experiment_name);
     let device_names: Vec<&str> = command_line_arguments
         .value_of("device_names")
         .unwrap_or(DEFAULT_DEVICE_NAMES)

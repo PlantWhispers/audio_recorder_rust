@@ -1,5 +1,7 @@
+use std::path::PathBuf;
+
 pub enum RecorderToWriterChannelMessage {
-    NewFile(String),
+    NewFile(PathBuf),
     Data([Vec<i16>; 2]),
     EndThread,
 }
