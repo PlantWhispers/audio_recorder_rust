@@ -1,7 +1,7 @@
 mod utils;
 use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::{
-    config::{N_OF_BUFFERS_PER_FILE, SOUND_EMITTER_TRIGGER_PIN},
+    config::{BUFFER_SIZE, SAMPLE_RATE, SOUND_EMITTER_TRIGGER_PIN, TIME_BETWEEN_RESETS_IN_S},
     utils::{hc_sr04::HcSr04SoundEmitter, pcm_setup::setup_pcm},
 };
 use crossbeam::channel::Sender;
@@ -24,6 +24,7 @@ pub fn recording_thread_logic(
         .iter()
         .map(|device| device.io_i16().unwrap())
         .collect::<Vec<_>>();
+    let n_of_buffers_per_file = TIME_BETWEEN_RESETS_IN_S * SAMPLE_RATE / BUFFER_SIZE as u32;
 
     // Main recording loop
     'main_recording_loop: while !shutdown_signal.load(Ordering::SeqCst) {
@@ -32,7 +33,7 @@ pub fn recording_thread_logic(
         pcm_devices[0].reset().unwrap();
         sound_emitter.emit_sound();
 
-        for _ in 0..N_OF_BUFFERS_PER_FILE {
+        for _ in 0..n_of_buffers_per_file {
             let data = {
                 (
                     get_mic_data(&pcm_devices[0], &pcm_ios[0]),
