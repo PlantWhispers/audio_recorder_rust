@@ -21,7 +21,7 @@ pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) 
             }
             NewFile(path) => {
                 end_file(&mut file)?; // Close the previous file (if any)
-                                      // TODO: Create folder if it doesn't exist
+                std::fs::create_dir_all(path.parent().unwrap()).unwrap();
                 let mut new_file = File::create(path)?;
                 write_wav_header(
                     &mut new_file,

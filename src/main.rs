@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .about("Autonomous audio recorder for plant research.")
             .arg(
                 Arg::with_name("experiment_name")
-                    .short("n")
+                    .short("e")
                     .long("experiment-name")
                     .value_name("EXPERIMENT_NAME")
                     .help("Sets the name of the current experiment")
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Arg::with_name("device_names")
                     .long("device-names")
                     .value_name("DEVICE_NAMES")
-                    .help("Sets ALSA device names, separated by selicolon(;). Devices can be found using `arecord -l`.")
+                    .help("Sets ALSA device names, separated by selicolon (for exapmle --device-names \"mic1;mic2\"). Devices can be found using `arecord -l`.")
                     .takes_value(true),
             )
             .arg(
@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Optional arguments with defaults
     let sound_path: PathBuf = command_line_arguments
         .value_of("path")
-        .unwrap_or("./")
+        .unwrap_or("/home/pi/raw-data/")
         .parse()
         .expect("Path did not parse to a valid path");
     let destination_path = sound_path.join(experiment_name);
@@ -78,8 +78,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .split(';')
         .map(|s| s.trim())
         .collect();
-    // TODO: Test
-    // TODO: Check if device names are valid
     let file_duration_in_seconds = command_line_arguments
         .value_of("file_duration")
         .unwrap_or(DEFAULT_FILE_DURATION)
@@ -100,7 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let shutdown_signal_clone = Arc::clone(&shutdown_signal);
-    let pcm_devices = setup_pcm(device_names).unwrap();
+    let pcm_devices = setup_pcm(device_names).expect("The specified devices could not be set up.");
     let mut sound_emitter = utils::hc_sr04::HcSr04SoundEmitter::new(trigger_pin).unwrap();
     let emitt_sound = move || sound_emitter.emit_sound();
     // TODO: TEST sound emitter!
