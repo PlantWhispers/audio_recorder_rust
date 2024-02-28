@@ -8,7 +8,7 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 pub fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
     let mut buffer = vec![0i16; BUFFER_SIZE];
@@ -27,7 +27,7 @@ pub fn recording_thread_logic<F: FnMut()>(
     sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
     pcm_devices: [alsa::pcm::PCM; 2],
-    file_duration: u32,
+    file_duration: Duration,
     mut emitt_sound: F,
     destination_folder: PathBuf,
 ) {
@@ -36,7 +36,7 @@ pub fn recording_thread_logic<F: FnMut()>(
         .iter()
         .map(|device| device.io_i16().unwrap())
         .collect::<Vec<_>>();
-    let n_of_buffers_per_file = file_duration * SAMPLE_RATE / BUFFER_SIZE as u32;
+    let n_of_buffers_per_file = file_duration.as_secs() as u32 * SAMPLE_RATE / BUFFER_SIZE as u32;
 
     // Main recording loop
     'main_recording_loop: while !shutdown_signal.load(Ordering::SeqCst) {

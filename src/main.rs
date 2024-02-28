@@ -4,91 +4,66 @@ pub mod utils;
 mod writing_thread;
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 use std::{path::PathBuf, sync::atomic::AtomicBool};
 
-use clap::{App, Arg};
+use clap::Parser;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use utils::channel_messages::RecorderToWriterChannelMessage;
 
+use crate::recording_thread::recording_thread_logic;
+use crate::utils::hc_sr04::HcSr04SoundEmitter;
+use crate::writing_thread::writing_thread_logic;
 use crate::{
-    config::{DEFAULT_DEVICE_NAMES, DEFAULT_FILE_DURATION, DEFAULT_SOUND_EMITTER_TRIGGER_PIN},
+    config::{DEFAULT_DEVICE_NAMES, DEFAULT_FILE_DURATION, DEFAULT_SOUND_TRIGGER_PIN},
     utils::pcm_setup::setup_pcm,
 };
 
+#[derive(Parser, Debug)]
+#[clap(
+    name = "Plantwhispers Recorder",
+    version = "1.0",
+    author = "Simon Puschmann <imnos>",
+    about = "Autonomous audio recorder for plant research."
+)]
+struct Args {
+    #[clap(
+        short = 'e',
+        long = "experiment-name",
+        value_name = "EXPERIMENT_NAME",
+        required = true
+    )]
+    experiment_name: PathBuf,
+    #[clap(short = 'p', long = "path", value_name = "PATH")]
+    path: Option<PathBuf>,
+    #[clap(
+        long = "device-names",
+        value_name = "DEVICE_NAMES",
+        number_of_values = 2
+    )]
+    device_names: Option<Vec<String>>,
+    #[clap(long = "file-duration", value_name = "FILE_DURATION_IN_SECONDS")]
+    file_duration: Option<u64>,
+    #[clap(long = "emmiter-pin", value_name = "SOUND_EMITTER_TRIGGER_PIN")]
+    emitter_pin: Option<u8>,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let command_line_arguments = App::new("Plantwhispers Recorder")
-            .version("1.0")
-            .author("Simon Puschmann <imnos>")
-            .about("Autonomous audio recorder for plant research.")
-            .arg(
-                Arg::with_name("experiment_name")
-                    .short("e")
-                    .long("experiment-name")
-                    .value_name("EXPERIMENT_NAME")
-                    .help("Sets the name of the current experiment")
-                    .takes_value(true)
-                    .required(true),
-            )
-            .arg( Arg::with_name("path")
-                .short("p")
-                .long("path")
-                .value_name("PATH")
-                .help("Sets the path to the folder where the sound files will be stored")
-                .takes_value(true)
-            )
-            .arg(
-                Arg::with_name("device_names")
-                    .long("device-names")
-                    .value_name("DEVICE_NAMES")
-                    .help("Sets ALSA device names, separated by selicolon (for exapmle --device-names \"mic1;mic2\"). Devices can be found using `arecord -l`.")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("file_duration")
-                    .long("file-duration")
-                    .value_name("FILE_DURATION_IN_SECONDS")
-                    .help("Sets the file duration in seconds before a new file is created. Default is 30 seconds.")
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("emitter_pin")
-                    .long("emmiter-pin")
-                    .value_name("SOUND_EMITTER_TRIGGER_PIN")
-                    .help("Sets the sound emitter trigger pin number. Default is 2.")
-                    .takes_value(true),
-            )
-            .get_matches();
+    let args = Args::parse();
 
-    // Mandatory argument
-    let experiment_name: PathBuf = command_line_arguments
-        .value_of("experiment_name")
-        .unwrap()
-        .parse()
-        .expect("Name of the experiment did not parse to a valid path");
-
-    // Optional arguments with defaults
-    let sound_path: PathBuf = command_line_arguments
-        .value_of("path")
-        .unwrap_or("/home/pi/raw-data/")
-        .parse()
-        .expect("Path did not parse to a valid path");
-    let destination_path = sound_path.join(experiment_name);
-    let device_names: Vec<&str> = command_line_arguments
-        .value_of("device_names")
-        .unwrap_or(DEFAULT_DEVICE_NAMES)
-        .split(';')
-        .map(|s| s.trim())
-        .collect();
-    let file_duration_in_seconds = command_line_arguments
-        .value_of("file_duration")
-        .unwrap_or(DEFAULT_FILE_DURATION)
-        .parse::<u32>()
-        .expect("Time between resets should be an unsigned integer");
-    let trigger_pin = command_line_arguments
-        .value_of("emmiter_pin")
-        .unwrap_or(DEFAULT_SOUND_EMITTER_TRIGGER_PIN)
-        .parse::<u8>()
-        .expect("Trigger pin should be an unsigned integer");
+    let experiment_name = args.experiment_name;
+    let sound_path = args.path.unwrap_or("/home/pi/raw-data/".parse()?);
+    let destination_folder = sound_path.join(experiment_name);
+    let device_names: Vec<&str> = args
+        .device_names
+        .as_ref()
+        .map(|v| v.iter().map(AsRef::as_ref).collect())
+        .unwrap_or(DEFAULT_DEVICE_NAMES.to_vec());
+    let file_duration =
+        Duration::from_secs(args.file_duration.unwrap_or(DEFAULT_FILE_DURATION.parse()?));
+    let trigger_pin = args
+        .emitter_pin
+        .unwrap_or(DEFAULT_SOUND_TRIGGER_PIN.parse()?);
 
     // Logic
 
@@ -100,26 +75,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let shutdown_signal_clone = Arc::clone(&shutdown_signal);
     let pcm_devices = setup_pcm(device_names).expect("The specified devices could not be set up.");
-    let mut sound_emitter = utils::hc_sr04::HcSr04SoundEmitter::new(trigger_pin).unwrap();
+    let mut sound_emitter = HcSr04SoundEmitter::new(trigger_pin).unwrap();
     let emitt_sound = move || sound_emitter.emit_sound();
     // TODO: TEST sound emitter!
 
     let _recorder_thread = {
         thread::spawn(move || {
-            recording_thread::recording_thread_logic(
+            recording_thread_logic(
                 tx,
                 shutdown_signal_clone,
                 pcm_devices,
-                file_duration_in_seconds,
+                file_duration,
                 emitt_sound,
-                destination_path,
+                destination_folder,
             );
         })
     };
 
     let _writer_thread = {
         thread::spawn(move || {
-            writing_thread::writing_thread_logic(rx).expect("Writing thread failed");
+            writing_thread_logic(rx).expect("Writing thread failed");
         })
     };
 

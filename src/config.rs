@@ -1,9 +1,9 @@
 use alsa::pcm::{Access, Format};
 
 // Default values
-pub const DEFAULT_DEVICE_NAMES: &str = "hw:0,0;hw:1,0";
+pub const DEFAULT_DEVICE_NAMES: [&str; 2] = ["hw:0,0", "hw:1,0"];
 pub const DEFAULT_FILE_DURATION: &str = "30";
-pub const DEFAULT_SOUND_EMITTER_TRIGGER_PIN: &str = "2";
+pub const DEFAULT_SOUND_TRIGGER_PIN: &str = "2";
 
 // Hardcoded values
 pub const SAMPLE_RATE: u32 = 384_000;
