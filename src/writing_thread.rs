@@ -1,10 +1,11 @@
-mod wav_utils;
-use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::config::SAMPLE_RATE;
+use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
+    self, Data, EndThread, NewFile,
+};
+use crate::utils::wav_utils::{end_file, write_wav_header};
 use crossbeam::channel::Receiver;
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
-use wav_utils::{end_file, write_wav_header};
 
 const BITS_PER_SAMPLE: u16 = 16;
 const NUM_CHANNELS_IN_FILE: u16 = 2;
@@ -32,7 +33,9 @@ pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) 
                 file = Some(BufWriter::new(new_file));
             }
             Data(data) => {
-                let Some(ref mut writer) = file else { continue; };
+                let Some(ref mut writer) = file else {
+                    continue;
+                };
 
                 let mut buffer = Vec::new();
                 for (a, b) in data[0].iter().zip(data[1].iter()) {

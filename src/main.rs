@@ -1,13 +1,14 @@
 mod config;
-pub mod recorder;
+mod recording_thread;
 pub mod utils;
+mod writing_thread;
 use std::sync::Arc;
 use std::thread;
 use std::{path::PathBuf, sync::atomic::AtomicBool};
 
 use clap::{App, Arg};
 use crossbeam::channel::{unbounded, Receiver, Sender};
-use recorder::channel_messages::RecorderToWriterChannelMessage;
+use utils::channel_messages::RecorderToWriterChannelMessage;
 
 use crate::{
     config::{DEFAULT_DEVICE_NAMES, DEFAULT_FILE_DURATION, DEFAULT_SOUND_EMITTER_TRIGGER_PIN},
@@ -105,7 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _recorder_thread = {
         thread::spawn(move || {
-            recorder::recording_thread::recording_thread_logic(
+            recording_thread::recording_thread_logic(
                 tx,
                 shutdown_signal_clone,
                 pcm_devices,
@@ -118,7 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _writer_thread = {
         thread::spawn(move || {
-            recorder::writing_thread::writing_thread_logic(rx).expect("Writing thread failed");
+            writing_thread::writing_thread_logic(rx).expect("Writing thread failed");
         })
     };
 

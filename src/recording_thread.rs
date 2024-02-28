@@ -1,16 +1,27 @@
-mod utils;
-use super::channel_messages::RecorderToWriterChannelMessage::{self, Data, EndThread, NewFile};
 use crate::config::{BUFFER_SIZE, SAMPLE_RATE};
-use crossbeam::channel::Sender;
-use std::{
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::SystemTime,
+use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
+    self, Data, EndThread, NewFile,
 };
-use utils::get_mic_data;
+use alsa::pcm::{IO, PCM};
+use crossbeam::channel::Sender;
+use std::error::Error;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::SystemTime;
+
+pub fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, Box<dyn Error>> {
+    let mut buffer = vec![0i16; BUFFER_SIZE];
+    match pcm_io.readi(&mut buffer) {
+        Ok(_) => Ok(buffer),
+        Err(err) => {
+            if pcm_device.try_recover(err, false).is_err() {
+                panic!("Failed to recover from ALSA error: {}", err);
+            }
+            Err(err.into())
+        }
+    }
+}
 
 pub fn recording_thread_logic<F: FnMut()>(
     sender: Sender<RecorderToWriterChannelMessage>,
