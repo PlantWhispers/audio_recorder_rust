@@ -32,14 +32,14 @@ pub fn writing_thread_logic(receiver: Receiver<RecorderToWriterChannelMessage>) 
                 file = Some(BufWriter::new(new_file));
             }
             Data(data) => {
-                if let Some(ref mut writer) = file {
-                    let mut buffer = Vec::new();
-                    for (a, b) in data[0].iter().zip(data[1].iter()) {
-                        buffer.extend_from_slice(&a.to_le_bytes());
-                        buffer.extend_from_slice(&b.to_le_bytes());
-                    }
-                    writer.write_all(&buffer)?;
+                let Some(ref mut writer) = file else { continue; };
+
+                let mut buffer = Vec::new();
+                for (a, b) in data[0].iter().zip(data[1].iter()) {
+                    buffer.extend_from_slice(&a.to_le_bytes());
+                    buffer.extend_from_slice(&b.to_le_bytes());
                 }
+                writer.write_all(&buffer)?;
             }
         }
     }
