@@ -2,6 +2,7 @@ use crate::config::{BUFFER_SIZE, SAMPLE_RATE};
 use crate::utils::channel_messages::RecorderToWriterChannelMessage::{
     self, Data, EndThread, NewFile,
 };
+use crate::utils::hc_sr04::SoundEmitter;
 use alsa::pcm::{IO, PCM};
 use crossbeam::channel::Sender;
 use std::error::Error;
@@ -23,12 +24,12 @@ pub fn get_mic_data(pcm_device: &PCM, pcm_io: &IO<'_, i16>) -> Result<Vec<i16>, 
     }
 }
 
-pub fn recording_thread_logic<F: FnMut()>(
+pub fn recording_thread_logic<E: SoundEmitter>(
     sender: Sender<RecorderToWriterChannelMessage>,
     shutdown_signal: Arc<AtomicBool>,
     pcm_devices: [alsa::pcm::PCM; 2],
     file_duration: Duration,
-    mut emitt_sound: F,
+    mut sound_emitter: E,
     destination_folder: PathBuf,
 ) {
     pcm_devices[0].start().unwrap();
@@ -53,7 +54,7 @@ pub fn recording_thread_logic<F: FnMut()>(
 
         pcm_devices[0].reset().unwrap();
 
-        emitt_sound();
+        sound_emitter.emit_sound();
 
         for _ in 0..n_of_buffers_per_file {
             let data = {

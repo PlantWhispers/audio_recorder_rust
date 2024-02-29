@@ -4,6 +4,10 @@
 use rppal::gpio::{Error, Gpio, OutputPin};
 use std::{thread, time::Duration};
 
+pub trait SoundEmitter {
+    fn emit_sound(&mut self);
+}
+
 pub struct HcSr04SoundEmitter {
     trigger: OutputPin,
 }
@@ -15,8 +19,10 @@ impl HcSr04SoundEmitter {
         trigger.set_low();
         Ok(Self { trigger })
     }
+}
 
-    pub fn emit_sound(&mut self) {
+impl SoundEmitter for HcSr04SoundEmitter {
+    fn emit_sound(&mut self) {
         self.trigger.set_high();
         thread::sleep(Duration::from_micros(10));
         self.trigger.set_low();

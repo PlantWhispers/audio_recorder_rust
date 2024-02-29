@@ -75,8 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let shutdown_signal_clone = Arc::clone(&shutdown_signal);
     let pcm_devices = setup_pcm(device_names).expect("The specified devices could not be set up.");
-    let mut sound_emitter = HcSr04SoundEmitter::new(trigger_pin).unwrap();
-    let emitt_sound = move || sound_emitter.emit_sound();
+    let sound_emitter = HcSr04SoundEmitter::new(trigger_pin).unwrap();
     // TODO: TEST sound emitter!
 
     let _recorder_thread = {
@@ -86,7 +85,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 shutdown_signal_clone,
                 pcm_devices,
                 file_duration,
-                emitt_sound,
+                sound_emitter,
                 destination_folder,
             );
         })
