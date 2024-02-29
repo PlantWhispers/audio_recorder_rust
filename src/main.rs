@@ -1,16 +1,7 @@
 mod config;
 mod recording_thread;
-pub mod utils;
+mod utils;
 mod writing_thread;
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
-use std::{path::PathBuf, sync::atomic::AtomicBool};
-
-use clap::Parser;
-use crossbeam::channel::{unbounded, Receiver, Sender};
-use utils::channel_messages::RecorderToWriterChannelMessage;
-
 use crate::recording_thread::recording_thread_logic;
 use crate::utils::hc_sr04::HcSr04SoundEmitter;
 use crate::writing_thread::writing_thread_logic;
@@ -18,6 +9,13 @@ use crate::{
     config::{DEFAULT_DEVICE_NAMES, DEFAULT_FILE_DURATION, DEFAULT_SOUND_TRIGGER_PIN},
     utils::pcm_setup::setup_pcm,
 };
+use clap::Parser;
+use crossbeam::channel::{unbounded, Receiver, Sender};
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
+use std::{path::PathBuf, sync::atomic::AtomicBool};
+use utils::channel_messages::RecorderToWriterChannelMessage;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -26,6 +24,7 @@ use crate::{
     author = "Simon Puschmann <imnos>",
     about = "Autonomous audio recorder for plant research."
 )]
+
 struct Args {
     #[clap(
         short = 'e',
@@ -66,8 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(DEFAULT_SOUND_TRIGGER_PIN.parse()?);
 
     // Logic
-
-    let (tx, rx): (
+    let (sender, receiver): (
         Sender<RecorderToWriterChannelMessage>,
         Receiver<RecorderToWriterChannelMessage>,
     ) = unbounded();
@@ -81,7 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _recorder_thread = {
         thread::spawn(move || {
             recording_thread_logic(
-                tx,
+                sender,
                 shutdown_signal_clone,
                 pcm_devices,
                 file_duration,
@@ -93,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _writer_thread = {
         thread::spawn(move || {
-            writing_thread_logic(rx).expect("Writing thread failed");
+            writing_thread_logic(receiver).expect("Writing thread failed");
         })
     };
 
